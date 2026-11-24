@@ -8,6 +8,23 @@ The daemon decides who is a member and which roles they hold. What a role writes
 
 Kept as they are: machine tags, role markers, and the systemd ordering. The role marker directory is renamed to `/etc/machine-role.d/`, so that it is not mistaken for a Kubernetes node.
 
+## Document shape
+
+The topology is a Kubernetes-style document, so tools that know the shape can read and validate it:
+
+```yaml
+apiVersion: fistpumpd.example/v1alpha1
+kind: Topology
+metadata: {version: 2}
+spec:
+  roles:
+    - name: server
+      replicas: {min: 3, max: 3}
+      selector: {…}
+```
+
+A role is a pool that machines apply to, not a template that creates machines. `replicas.min` that cannot be met stays unmet, as a request for capacity that is not available does. `fistpumpd status` shows `desired`, `matched` and `ready` for each role. The document is compatible with a Kubernetes API only in its shape: nothing here is Cluster API, and nothing needs a cluster to read it.
+
 ## Selectors
 
 A role selects nodes with the Kubernetes label selector form over the facts the node reports (`arch`, `memory-gib`, `disk-gib`, `cpu-count`, `board`, `tpm`):
