@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"path/filepath"
@@ -27,12 +28,16 @@ func (h *recordingHost) Run(name string, arguments ...string) {
 
 func freeUDPPort(t testing.TB) int {
 	t.Helper()
-	connection, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
-	if err != nil {
-		t.Fatal(err)
+	for attempt := 0; attempt < 200; attempt++ {
+		port := 20000 + rand.Intn(10000)
+		connection, err := net.ListenPacket("udp", fmt.Sprintf("127.0.0.1:%d", port))
+		if err == nil {
+			connection.Close()
+			return port
+		}
 	}
-	defer connection.Close()
-	return connection.LocalAddr().(*net.UDPAddr).Port
+	t.Fatal("no free port below the ephemeral range")
+	return 0
 }
 
 var rigTopology = Obj{

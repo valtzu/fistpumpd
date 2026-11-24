@@ -3,6 +3,7 @@ package cluster
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"path/filepath"
 	"strings"
@@ -12,12 +13,16 @@ import (
 
 func freePort(t testing.TB) int {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
+	for attempt := 0; attempt < 200; attempt++ {
+		port := 20000 + rand.Intn(10000)
+		listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+		if err == nil {
+			listener.Close()
+			return port
+		}
 	}
-	defer listener.Close()
-	return listener.Addr().(*net.TCPAddr).Port
+	t.Fatal("no free port below the ephemeral range")
+	return 0
 }
 
 type live struct {
