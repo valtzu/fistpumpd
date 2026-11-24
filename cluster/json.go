@@ -122,3 +122,15 @@ func toAny(list []string) []any {
 	}
 	return converted
 }
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for index := range a {
+		if a[index] != b[index] {
+			return false
+		}
+	}
+	return true
+}

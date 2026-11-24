@@ -101,18 +101,6 @@ func TestTopologyVectors(t *testing.T) {
 	}
 }
 
-func equalStrings(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for index := range a {
-		if a[index] != b[index] {
-			return false
-		}
-	}
-	return true
-}
-
 func TestPolicyVectors(t *testing.T) {
 	data := vectors(t)["policy"].(Obj)
 	policy := NewPolicy(data["document"].(Obj))
