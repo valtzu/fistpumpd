@@ -86,7 +86,7 @@ Every member can serve a small Kubernetes-style HTTP API from its copy of the lo
 - Discovery, and `get`, `list` and `watch` for members and roles, shaped like `Machine` and `MachineSet`, with the facts as labels. `clusterctl` is out of scope, because it needs CRDs, a provider inventory and a `Cluster` object.
 - Clients authenticate with mTLS. The topology lists the client CAs, and a client is read-only unless the topology lists its key as an admin.
 - A change, such as the machine tags of a member, is an `annotate` log entry signed by an admin key and applied after a quorum signs it, in the way a `reset` is signed with the build key. Members apply the tags of their slot.
-- Any member answers, including through a floating address, because the log is replicated.
+- Any member answers, because the log is replicated. An optional floating address for it (a `management` group in `vips`) is gated on the daemon's health, not on the Kubernetes API, so it stays up while k3s is down. The API has its own port: k3s listens on every address on 6443, so the API cannot share that port without restricting k3s to one address.
 
 ## Compatibility
 
