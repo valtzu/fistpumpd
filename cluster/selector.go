@@ -108,8 +108,78 @@ func compare(fact, expression any) (bool, error) {
 	return false, fmt.Errorf("unsupported selector value %v", expression)
 }
 
+const (
+	matchLabels      = "matchLabels"
+	matchExpressions = "matchExpressions"
+)
+
+func sameValue(fact any, wanted string) bool {
+	if displayString(fact) == wanted {
+		return true
+	}
+	left, errLeft := number(fact)
+	right, errRight := number(wanted)
+	return errLeft == nil && errRight == nil && left == right
+}
+
+func inValues(fact any, values []string) bool {
+	for _, value := range values {
+		if sameValue(fact, value) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchesExpression(expression Obj, facts Obj) bool {
+	fact, present := facts[str(expression, "key")]
+	values := stringList(expression["values"])
+	switch str(expression, "operator") {
+	case "In":
+		return present && inValues(fact, values)
+	case "NotIn":
+		return !present || !inValues(fact, values)
+	case "Exists":
+		return present
+	case "DoesNotExist":
+		return !present
+	case "Gt", "Lt":
+		if !present || len(values) != 1 {
+			return false
+		}
+		left, errLeft := number(fact)
+		right, errRight := number(values[0])
+		if errLeft != nil || errRight != nil {
+			return false
+		}
+		if str(expression, "operator") == "Gt" {
+			return left > right
+		}
+		return left < right
+	}
+	return false
+}
+
 func Matches(selector, facts Obj) bool {
+	if labels, ok := selector[matchLabels].(Obj); ok {
+		for name, wanted := range labels {
+			fact, present := facts[name]
+			if !present || !sameValue(fact, displayString(wanted)) {
+				return false
+			}
+		}
+	}
+	if list, ok := selector[matchExpressions].([]any); ok {
+		for _, item := range list {
+			if expression, isObject := item.(Obj); !isObject || !matchesExpression(expression, facts) {
+				return false
+			}
+		}
+	}
 	for name, expression := range selector {
+		if name == matchLabels || name == matchExpressions {
+			continue
+		}
 		fact, present := facts[name]
 		if !present {
 			return false
@@ -127,7 +197,13 @@ func ValidateSelector(selector any) error {
 	if !ok {
 		return fmt.Errorf("a selector is an object")
 	}
+	if err := validateStructured(object); err != nil {
+		return err
+	}
 	for name, expression := range object {
+		if name == matchLabels || name == matchExpressions {
+			continue
+		}
 		if !factName.MatchString(name) {
 			return fmt.Errorf("bad fact name %q", name)
 		}
@@ -150,6 +226,58 @@ func ValidateSelector(selector any) error {
 			case bool, int, int64, float64, json.Number:
 			default:
 				return fmt.Errorf("%s: unsupported value %v", name, item)
+			}
+		}
+	}
+	return nil
+}
+
+func validateStructured(selector Obj) error {
+	if given, present := selector[matchLabels]; present {
+		labels, ok := given.(Obj)
+		if !ok {
+			return fmt.Errorf("matchLabels maps a fact to a value")
+		}
+		for name, value := range labels {
+			if !factName.MatchString(name) {
+				return fmt.Errorf("bad fact name %q", name)
+			}
+			switch value.(type) {
+			case string, bool, int, int64, float64, json.Number:
+			default:
+				return fmt.Errorf("matchLabels %s: unsupported value %v", name, value)
+			}
+		}
+	}
+	if given, present := selector[matchExpressions]; present {
+		list, ok := given.([]any)
+		if !ok {
+			return fmt.Errorf("matchExpressions is a list")
+		}
+		for _, item := range list {
+			expression, isObject := item.(Obj)
+			if !isObject || !factName.MatchString(str(expression, "key")) {
+				return fmt.Errorf("an expression has a key naming a fact")
+			}
+			values := stringList(expression["values"])
+			switch str(expression, "operator") {
+			case "In", "NotIn":
+				if len(values) == 0 {
+					return fmt.Errorf("%s: In and NotIn need values", str(expression, "key"))
+				}
+			case "Exists", "DoesNotExist":
+				if len(values) != 0 {
+					return fmt.Errorf("%s: Exists and DoesNotExist take no values", str(expression, "key"))
+				}
+			case "Gt", "Lt":
+				if len(values) != 1 {
+					return fmt.Errorf("%s: Gt and Lt take one number", str(expression, "key"))
+				}
+				if _, err := number(values[0]); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("%s: unknown operator %q", str(expression, "key"), str(expression, "operator"))
 			}
 		}
 	}
