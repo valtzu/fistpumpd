@@ -1,0 +1,1625 @@
+{
+ "apply": {
+  "cases": [
+   {
+    "k3s": "tls-san+:\n  - 192.168.1.20\n  - 192.168.1.21\n  - 192.168.1.22\ncluster-init: true\n",
+    "keepalived": "global_defs {\n    enable_script_security\n    script_user nobody\n}\n\nvrrp_script chk_ingress {\n    script \"/usr/bin/curl --silent --max-time 2 --output /dev/null http://127.0.0.1:80/\"\n    interval 2\n    fall 2\n    rise 2\n}\n\nvrrp_script chk_server {\n    script \"/usr/bin/curl --silent --insecure --max-time 2 --output /dev/null https://127.0.0.1:6443/livez\"\n    interval 2\n    fall 2\n    rise 2\n}\n\nvrrp_instance INGRESS1 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 60\n    advert_int 1\n    preempt_delay 60\n    priority 100\n    virtual_ipaddress {\n        192.168.1.30/24\n    }\n    track_script {\n        chk_ingress\n    }\n}\n\nvrrp_instance INGRESS2 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 61\n    advert_int 1\n    preempt_delay 60\n    priority 100\n    virtual_ipaddress {\n        192.168.1.31/24\n    }\n    track_script {\n        chk_ingress\n    }\n}\n\nvrrp_instance SERVER1 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 70\n    advert_int 1\n    preempt_delay 60\n    priority 100\n    virtual_ipaddress {\n        192.168.1.20/24\n    }\n    track_script {\n        chk_server\n    }\n}\n\nvrrp_instance SERVER2 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 71\n    advert_int 1\n    preempt_delay 60\n    priority 80\n    virtual_ipaddress {\n        192.168.1.21/24\n    }\n    track_script {\n        chk_server\n    }\n}\n\nvrrp_instance SERVER3 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 72\n    advert_int 1\n    preempt_delay 60\n    priority 90\n    virtual_ipaddress {\n        192.168.1.22/24\n    }\n    track_script {\n        chk_server\n    }\n}\n",
+    "plan": {
+     "creates_tokens": true,
+     "k3s": {
+      "cluster-init": true,
+      "tls-san": [
+       "192.168.1.20",
+       "192.168.1.21",
+       "192.168.1.22"
+      ]
+     },
+     "keepalived": {
+      "instances": [
+       {
+        "address": "192.168.1.30",
+        "check": "ingress",
+        "name": "INGRESS1",
+        "priority": 100,
+        "router_id": 60
+       },
+       {
+        "address": "192.168.1.31",
+        "check": "ingress",
+        "name": "INGRESS2",
+        "priority": 100,
+        "router_id": 61
+       },
+       {
+        "address": "192.168.1.20",
+        "check": "server",
+        "name": "SERVER1",
+        "priority": 100,
+        "router_id": 70
+       },
+       {
+        "address": "192.168.1.21",
+        "check": "server",
+        "name": "SERVER2",
+        "priority": 80,
+        "router_id": 71
+       },
+       {
+        "address": "192.168.1.22",
+        "check": "server",
+        "name": "SERVER3",
+        "priority": 90,
+        "router_id": 72
+       }
+      ],
+      "interface": "eth0"
+     },
+     "members": 3,
+     "needs_tokens": [],
+     "rank": 0,
+     "roles": [
+      "server",
+      "ingress"
+     ],
+     "slot": 0,
+     "start_k3s": true,
+     "topology": 2
+    },
+    "slot": 0
+   },
+   {
+    "k3s": "tls-san+:\n  - 192.168.1.20\n  - 192.168.1.21\n  - 192.168.1.22\nserver: https://192.168.1.20:6443\n",
+    "keepalived": "global_defs {\n    enable_script_security\n    script_user nobody\n}\n\nvrrp_script chk_server {\n    script \"/usr/bin/curl --silent --insecure --max-time 2 --output /dev/null https://127.0.0.1:6443/livez\"\n    interval 2\n    fall 2\n    rise 2\n}\n\nvrrp_instance SERVER1 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 70\n    advert_int 1\n    preempt_delay 60\n    priority 90\n    virtual_ipaddress {\n        192.168.1.20/24\n    }\n    track_script {\n        chk_server\n    }\n}\n\nvrrp_instance SERVER2 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 71\n    advert_int 1\n    preempt_delay 60\n    priority 100\n    virtual_ipaddress {\n        192.168.1.21/24\n    }\n    track_script {\n        chk_server\n    }\n}\n\nvrrp_instance SERVER3 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 72\n    advert_int 1\n    preempt_delay 60\n    priority 80\n    virtual_ipaddress {\n        192.168.1.22/24\n    }\n    track_script {\n        chk_server\n    }\n}\n",
+    "plan": {
+     "creates_tokens": false,
+     "k3s": {
+      "server": "https://192.168.1.20:6443",
+      "tls-san": [
+       "192.168.1.20",
+       "192.168.1.21",
+       "192.168.1.22"
+      ]
+     },
+     "keepalived": {
+      "instances": [
+       {
+        "address": "192.168.1.20",
+        "check": "server",
+        "name": "SERVER1",
+        "priority": 90,
+        "router_id": 70
+       },
+       {
+        "address": "192.168.1.21",
+        "check": "server",
+        "name": "SERVER2",
+        "priority": 100,
+        "router_id": 71
+       },
+       {
+        "address": "192.168.1.22",
+        "check": "server",
+        "name": "SERVER3",
+        "priority": 80,
+        "router_id": 72
+       }
+      ],
+      "interface": "eth0"
+     },
+     "members": 3,
+     "needs_tokens": [
+      "server",
+      "agent"
+     ],
+     "rank": 1,
+     "roles": [
+      "server"
+     ],
+     "slot": 1,
+     "start_k3s": true,
+     "topology": 2
+    },
+    "slot": 1
+   },
+   {
+    "k3s": "tls-san+:\n  - 192.168.1.20\n  - 192.168.1.21\n  - 192.168.1.22\nserver: https://192.168.1.20:6443\n",
+    "keepalived": "global_defs {\n    enable_script_security\n    script_user nobody\n}\n\nvrrp_script chk_server {\n    script \"/usr/bin/curl --silent --insecure --max-time 2 --output /dev/null https://127.0.0.1:6443/livez\"\n    interval 2\n    fall 2\n    rise 2\n}\n\nvrrp_instance SERVER1 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 70\n    advert_int 1\n    preempt_delay 60\n    priority 80\n    virtual_ipaddress {\n        192.168.1.20/24\n    }\n    track_script {\n        chk_server\n    }\n}\n\nvrrp_instance SERVER2 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 71\n    advert_int 1\n    preempt_delay 60\n    priority 90\n    virtual_ipaddress {\n        192.168.1.21/24\n    }\n    track_script {\n        chk_server\n    }\n}\n\nvrrp_instance SERVER3 {\n    interface eth0\n    state BACKUP\n    virtual_router_id 72\n    advert_int 1\n    preempt_delay 60\n    priority 100\n    virtual_ipaddress {\n        192.168.1.22/24\n    }\n    track_script {\n        chk_server\n    }\n}\n",
+    "plan": {
+     "creates_tokens": false,
+     "k3s": {
+      "server": "https://192.168.1.20:6443",
+      "tls-san": [
+       "192.168.1.20",
+       "192.168.1.21",
+       "192.168.1.22"
+      ]
+     },
+     "keepalived": {
+      "instances": [
+       {
+        "address": "192.168.1.20",
+        "check": "server",
+        "name": "SERVER1",
+        "priority": 80,
+        "router_id": 70
+       },
+       {
+        "address": "192.168.1.21",
+        "check": "server",
+        "name": "SERVER2",
+        "priority": 90,
+        "router_id": 71
+       },
+       {
+        "address": "192.168.1.22",
+        "check": "server",
+        "name": "SERVER3",
+        "priority": 100,
+        "router_id": 72
+       }
+      ],
+      "interface": "eth0"
+     },
+     "members": 3,
+     "needs_tokens": [
+      "server",
+      "agent"
+     ],
+     "rank": 2,
+     "roles": [
+      "server"
+     ],
+     "slot": 2,
+     "start_k3s": true,
+     "topology": 2
+    },
+    "slot": 2
+   }
+  ],
+  "genesis": {
+   "min_members": 2
+  },
+  "priorities": [
+   [
+    0,
+    1,
+    0,
+    100
+   ],
+   [
+    0,
+    1,
+    1,
+    100
+   ],
+   [
+    0,
+    1,
+    2,
+    100
+   ],
+   [
+    0,
+    2,
+    0,
+    100
+   ],
+   [
+    0,
+    2,
+    1,
+    90
+   ],
+   [
+    0,
+    2,
+    2,
+    100
+   ],
+   [
+    1,
+    2,
+    0,
+    90
+   ],
+   [
+    1,
+    2,
+    1,
+    100
+   ],
+   [
+    1,
+    2,
+    2,
+    90
+   ],
+   [
+    0,
+    3,
+    0,
+    100
+   ],
+   [
+    0,
+    3,
+    1,
+    80
+   ],
+   [
+    0,
+    3,
+    2,
+    90
+   ],
+   [
+    1,
+    3,
+    0,
+    90
+   ],
+   [
+    1,
+    3,
+    1,
+    100
+   ],
+   [
+    1,
+    3,
+    2,
+    80
+   ],
+   [
+    2,
+    3,
+    0,
+    80
+   ],
+   [
+    2,
+    3,
+    1,
+    90
+   ],
+   [
+    2,
+    3,
+    2,
+    100
+   ],
+   [
+    0,
+    7,
+    0,
+    100
+   ],
+   [
+    0,
+    7,
+    1,
+    40
+   ],
+   [
+    0,
+    7,
+    2,
+    50
+   ],
+   [
+    1,
+    7,
+    0,
+    90
+   ],
+   [
+    1,
+    7,
+    1,
+    100
+   ],
+   [
+    1,
+    7,
+    2,
+    40
+   ],
+   [
+    2,
+    7,
+    0,
+    80
+   ],
+   [
+    2,
+    7,
+    1,
+    90
+   ],
+   [
+    2,
+    7,
+    2,
+    100
+   ],
+   [
+    3,
+    7,
+    0,
+    70
+   ],
+   [
+    3,
+    7,
+    1,
+    80
+   ],
+   [
+    3,
+    7,
+    2,
+    90
+   ],
+   [
+    4,
+    7,
+    0,
+    60
+   ],
+   [
+    4,
+    7,
+    1,
+    70
+   ],
+   [
+    4,
+    7,
+    2,
+    80
+   ],
+   [
+    0,
+    40,
+    0,
+    100
+   ],
+   [
+    0,
+    40,
+    1,
+    22
+   ],
+   [
+    0,
+    40,
+    2,
+    24
+   ],
+   [
+    1,
+    40,
+    0,
+    98
+   ],
+   [
+    1,
+    40,
+    1,
+    100
+   ],
+   [
+    1,
+    40,
+    2,
+    22
+   ],
+   [
+    2,
+    40,
+    0,
+    96
+   ],
+   [
+    2,
+    40,
+    1,
+    98
+   ],
+   [
+    2,
+    40,
+    2,
+    100
+   ],
+   [
+    3,
+    40,
+    0,
+    94
+   ],
+   [
+    3,
+    40,
+    1,
+    96
+   ],
+   [
+    3,
+    40,
+    2,
+    98
+   ],
+   [
+    4,
+    40,
+    0,
+    92
+   ],
+   [
+    4,
+    40,
+    1,
+    94
+   ],
+   [
+    4,
+    40,
+    2,
+    96
+   ],
+   [
+    0,
+    200,
+    0,
+    100
+   ],
+   [
+    0,
+    200,
+    1,
+    1
+   ],
+   [
+    0,
+    200,
+    2,
+    1
+   ],
+   [
+    1,
+    200,
+    0,
+    99
+   ],
+   [
+    1,
+    200,
+    1,
+    100
+   ],
+   [
+    1,
+    200,
+    2,
+    1
+   ],
+   [
+    2,
+    200,
+    0,
+    98
+   ],
+   [
+    2,
+    200,
+    1,
+    99
+   ],
+   [
+    2,
+    200,
+    2,
+    100
+   ],
+   [
+    3,
+    200,
+    0,
+    97
+   ],
+   [
+    3,
+    200,
+    1,
+    98
+   ],
+   [
+    3,
+    200,
+    2,
+    99
+   ],
+   [
+    4,
+    200,
+    0,
+    96
+   ],
+   [
+    4,
+    200,
+    1,
+    97
+   ],
+   [
+    4,
+    200,
+    2,
+    98
+   ]
+  ]
+ },
+ "canonical": [
+  {
+   "canonical": "{}",
+   "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+   "value": {}
+  },
+  {
+   "canonical": "[]",
+   "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+   "value": []
+  },
+  {
+   "canonical": "{\"a\":2,\"b\":1}",
+   "sha256": "d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772",
+   "value": {
+    "a": 2,
+    "b": 1
+   }
+  },
+  {
+   "canonical": "{\"k\":\"\u00e4\u00f6 \u20ac \ud83d\ude00\"}",
+   "sha256": "b24e294b35f9133b060215aea4eaac5acff3603311fc86176259be9ff6520eab",
+   "value": {
+    "k": "\u00e4\u00f6 \u20ac \ud83d\ude00"
+   }
+  },
+  {
+   "canonical": "{\"k\":\"quote\\\" back\\\\slash\\nnewline\\ttab\\u0001ctl\u007fdel\"}",
+   "sha256": "c1c9a70631ba9dc77f9f80787f3fcaf7cd3fdf2c41f96f0f98fa5638858fd52f",
+   "value": {
+    "k": "quote\" back\\slash\nnewline\ttab\u0001ctl\u007fdel"
+   }
+  },
+  {
+   "canonical": "{\"nested\":{\"a\":false,\"z\":[1,2,{\"x\":true,\"y\":null}]}}",
+   "sha256": "93a86ba85456422361f8064fb9b4d2622167f19fb99ce4121568bfc93d2dd4d4",
+   "value": {
+    "nested": {
+     "a": false,
+     "z": [
+      1,
+      2,
+      {
+       "x": true,
+       "y": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "canonical": "{\"big\":9007199254740993,\"n\":-5,\"zero\":0}",
+   "sha256": "9f36717137442315977d2e9e4f5526b42c129d86fe4118f0b12deb7b9c7e8a59",
+   "value": {
+    "big": 9007199254740993,
+    "n": -5,
+    "zero": 0
+   }
+  },
+  {
+   "canonical": "{\"html\":\"<a href='x'>&</a>\"}",
+   "sha256": "ab6fcc89589e2051dc676d40f779685fa50be26f4efe1b29dcd62f64887690dc",
+   "value": {
+    "html": "<a href='x'>&</a>"
+   }
+  },
+  {
+   "canonical": "{\"slash\":\"a/b\"}",
+   "sha256": "460a2191dfd8b75e79eeeeffaca29d7fe375f343ad416f1a7923cd99b512f996",
+   "value": {
+    "slash": "a/b"
+   }
+  },
+  {
+   "canonical": "[{\"b\":\"x\"},{\"a\":\"y\"}]",
+   "sha256": "2a23b01de08c819d967bf88724f11755777c72e4bc4a0001b02005859c9b23ff",
+   "value": [
+    {
+     "b": "x"
+    },
+    {
+     "a": "y"
+    }
+   ]
+  },
+  {
+   "canonical": "{\"\":\"empty key\"}",
+   "sha256": "6523fdd34f2d03a4ef299210653fa8ee09cbd19b9bbd3c9fdf4cf156432f3533",
+   "value": {
+    "": "empty key"
+   }
+  }
+ ],
+ "chain": {
+  "entries": [
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "founder": true,
+     "node": {
+      "addr": "10.0.0.1:17947",
+      "ek_hash": "1010101010101010101010101010101010101010101010101010101010101010",
+      "sign_pub": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "tls_fp": "0000000000000000000000000000000000000000000000000000000000000000"
+     },
+     "policy": {},
+     "roles": [
+      "server",
+      "ingress"
+     ],
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 0,
+    "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sigs": {
+     "0": "1b0e5940efcf1aa2b23e1d3a27ea2ceec1b762fd2841b6a6e67812576b13fcc14f5cabf401e425fecec7d2eb0757c4d20d4dc97bc2a477995eb5188e6687e00c"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "node": {
+      "addr": "10.0.0.2:17947",
+      "ek_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "sign_pub": "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394",
+      "tls_fp": "0101010101010101010101010101010101010101010101010101010101010101"
+     },
+     "pcr1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "policy": {
+      "image": "30"
+     },
+     "roles": [
+      "server"
+     ],
+     "sponsor": 0,
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 1,
+    "prev": "24bd5e8e98515ebf67de2c359ccc08ba219f9ab80da6f0a1858bcd43fdf1166c",
+    "sigs": {
+     "0": "0b0b515b6c56348bc14c3ef133e5bdce54c9c9e50d6e3078d151ec14edbd7dc28ea8fd4965aef3a30bab98390506c3392b32213e1ebd690cecdf13006cff0e02"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "node": {
+      "addr": "10.0.0.3:17947",
+      "ek_hash": "1212121212121212121212121212121212121212121212121212121212121212",
+      "sign_pub": "ed4928c628d1c2c6eae90338905995612959273a5c63f93636c14614ac8737d1",
+      "tls_fp": "0202020202020202020202020202020202020202020202020202020202020202"
+     },
+     "pcr1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "policy": {
+      "image": "30"
+     },
+     "roles": [
+      "server"
+     ],
+     "sponsor": 0,
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 2,
+    "prev": "ed1e8d9345d7d5763c128a2de2840ce14662265aa27e865d25fec8101b47a215",
+    "sigs": {
+     "0": "2c2f68172d3b9da863561aeba0f1d58c64303983c56e9ec7ea477023d86488f76dcfa08e9a659b5e8985abf57830db30b5c26ffdbb5e5495ecb15e4bb23cce0c",
+     "1": "c20f113b7fbf0cf51e6b7306224c5129efad8be1d2ef6d846c9e8524603bfc1c47d7a7e1f2234fa6812fb89bf4975c6c4f14b1096c856299f7881914b012da07"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "node": {
+      "addr": "10.0.0.4:17947",
+      "ek_hash": "1313131313131313131313131313131313131313131313131313131313131313",
+      "sign_pub": "ca93ac1705187071d67b83c7ff0efe8108e8ec4530575d7726879333dbdabe7c",
+      "tls_fp": "0303030303030303030303030303030303030303030303030303030303030303"
+     },
+     "pcr1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "policy": {
+      "image": "30"
+     },
+     "roles": [
+      "agent",
+      "ingress"
+     ],
+     "sponsor": 0,
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 3,
+    "prev": "9e05259d80a017b6296e0e3c213dc2853505703cb83783ecd41a82b735b781df",
+    "sigs": {
+     "0": "9b1288c71606a28545df1fef758fe98d3f1f5bc72967335e31dc913b0d44f138cba7c96618fc4254317e546ea09e95d7c7c26ce4090277ec047785d89d5a4000",
+     "1": "874eaee54c95755911e151c7e4f242994aaa3c37088a15c3a9caa1eee0f0f53d7da421691c708d7e1b836dd72a4e587de50374f9c4308476f4c19ac6cc90590a"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "reason": "failed attestation",
+     "slot": 3
+    },
+    "index": 4,
+    "prev": "876662cec9b4b3b328e58a02fb7a354fda5fbaddcd16661752ad54ebc9e88e3b",
+    "sigs": {
+     "0": "5c959fee4ec63be6696d7db7ea101df1522a545a19d009ec0b515bd7511a83a842bdf07ee8a87a71dd82633f86e13d277ea6d8d974eabf9329d9f0a391095c0d",
+     "1": "9c7b1752d53eefc8a6237362f0334039afa9bf7ca693050466e6d910a443bd32493a06018b016c5ec0946474a82ce9f5b2630e9b7ffcdd06e1453d0ed87a230c",
+     "2": "489f397d14552663188b5c8236eede3e25ead568418a9fb1f69ffccefc57e7e0be7516e1733f665ee8822e7be9d6bca66ba8fb46b911fcdd126ae2bc23b8f306"
+    },
+    "type": "evict"
+   },
+   {
+    "body": {
+     "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "version": 2
+    },
+    "index": 5,
+    "prev": "b85c579425c68f9277c202e56576eb4a7948a969edaf5813ec1c74082da2cdac",
+    "sigs": {
+     "0": "b67abd4d4c982779778814a0ee5d5cb0767bace213ab8a8d5f8d1a940f0e93d5b8c23139a3e96c72ecb3a1f01756e64b9f95962755d49c85397eb4c9f8e85002",
+     "1": "04a1ae241302485cc25b07d0ac99ff701a405a7821d2c6aff02ae850dd603833b237725c4714003c94865f306561054e2a12d9d8670e606109c94635e7613b08"
+    },
+    "type": "topology"
+   }
+  ],
+  "seeds": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "state": {
+   "active": [
+    0,
+    1,
+    2
+   ],
+   "head": "00b86f796270171f91a9e92100138f03fc64eb7812d335cf2c1488e6913a012f",
+   "members": {
+    "0": {
+     "roles": [
+      "server",
+      "ingress"
+     ],
+     "status": "active"
+    },
+    "1": {
+     "roles": [
+      "server"
+     ],
+     "status": "active"
+    },
+    "2": {
+     "roles": [
+      "server"
+     ],
+     "status": "active"
+    },
+    "3": {
+     "roles": [
+      "agent",
+      "ingress"
+     ],
+     "status": "evicted"
+    }
+   },
+   "topology": {
+    "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "version": 2
+   }
+  },
+  "tampered": [
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "founder": true,
+     "node": {
+      "addr": "10.0.0.1:17947",
+      "ek_hash": "1010101010101010101010101010101010101010101010101010101010101010",
+      "sign_pub": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+      "tls_fp": "0000000000000000000000000000000000000000000000000000000000000000"
+     },
+     "policy": {},
+     "roles": [
+      "server",
+      "ingress"
+     ],
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 0,
+    "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+    "sigs": {
+     "0": "1b0e5940efcf1aa2b23e1d3a27ea2ceec1b762fd2841b6a6e67812576b13fcc14f5cabf401e425fecec7d2eb0757c4d20d4dc97bc2a477995eb5188e6687e00c"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "node": {
+      "addr": "10.0.0.2:17947",
+      "ek_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "sign_pub": "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394",
+      "tls_fp": "0101010101010101010101010101010101010101010101010101010101010101"
+     },
+     "pcr1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "policy": {
+      "image": "30"
+     },
+     "roles": [
+      "server"
+     ],
+     "sponsor": 0,
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 1,
+    "prev": "24bd5e8e98515ebf67de2c359ccc08ba219f9ab80da6f0a1858bcd43fdf1166c",
+    "sigs": {
+     "0": "0b0b515b6c56348bc14c3ef133e5bdce54c9c9e50d6e3078d151ec14edbd7dc28ea8fd4965aef3a30bab98390506c3392b32213e1ebd690cecdf13006cff0e02"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "node": {
+      "addr": "10.0.0.3:17947",
+      "ek_hash": "1212121212121212121212121212121212121212121212121212121212121212",
+      "sign_pub": "ed4928c628d1c2c6eae90338905995612959273a5c63f93636c14614ac8737d1",
+      "tls_fp": "0202020202020202020202020202020202020202020202020202020202020202"
+     },
+     "pcr1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "policy": {
+      "image": "30"
+     },
+     "roles": [
+      "agent"
+     ],
+     "sponsor": 0,
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 2,
+    "prev": "ed1e8d9345d7d5763c128a2de2840ce14662265aa27e865d25fec8101b47a215",
+    "sigs": {
+     "0": "2c2f68172d3b9da863561aeba0f1d58c64303983c56e9ec7ea477023d86488f76dcfa08e9a659b5e8985abf57830db30b5c26ffdbb5e5495ecb15e4bb23cce0c",
+     "1": "c20f113b7fbf0cf51e6b7306224c5129efad8be1d2ef6d846c9e8524603bfc1c47d7a7e1f2234fa6812fb89bf4975c6c4f14b1096c856299f7881914b012da07"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "facts": {
+      "arch": "arm64",
+      "memory-gib": 8
+     },
+     "node": {
+      "addr": "10.0.0.4:17947",
+      "ek_hash": "1313131313131313131313131313131313131313131313131313131313131313",
+      "sign_pub": "ca93ac1705187071d67b83c7ff0efe8108e8ec4530575d7726879333dbdabe7c",
+      "tls_fp": "0303030303030303030303030303030303030303030303030303030303030303"
+     },
+     "pcr1": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "policy": {
+      "image": "30"
+     },
+     "roles": [
+      "agent",
+      "ingress"
+     ],
+     "sponsor": 0,
+     "topology": {
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "version": 1
+     }
+    },
+    "index": 3,
+    "prev": "9e05259d80a017b6296e0e3c213dc2853505703cb83783ecd41a82b735b781df",
+    "sigs": {
+     "0": "9b1288c71606a28545df1fef758fe98d3f1f5bc72967335e31dc913b0d44f138cba7c96618fc4254317e546ea09e95d7c7c26ce4090277ec047785d89d5a4000",
+     "1": "874eaee54c95755911e151c7e4f242994aaa3c37088a15c3a9caa1eee0f0f53d7da421691c708d7e1b836dd72a4e587de50374f9c4308476f4c19ac6cc90590a"
+    },
+    "type": "admit"
+   },
+   {
+    "body": {
+     "reason": "failed attestation",
+     "slot": 3
+    },
+    "index": 4,
+    "prev": "876662cec9b4b3b328e58a02fb7a354fda5fbaddcd16661752ad54ebc9e88e3b",
+    "sigs": {
+     "0": "5c959fee4ec63be6696d7db7ea101df1522a545a19d009ec0b515bd7511a83a842bdf07ee8a87a71dd82633f86e13d277ea6d8d974eabf9329d9f0a391095c0d",
+     "1": "9c7b1752d53eefc8a6237362f0334039afa9bf7ca693050466e6d910a443bd32493a06018b016c5ec0946474a82ce9f5b2630e9b7ffcdd06e1453d0ed87a230c",
+     "2": "489f397d14552663188b5c8236eede3e25ead568418a9fb1f69ffccefc57e7e0be7516e1733f665ee8822e7be9d6bca66ba8fb46b911fcdd126ae2bc23b8f306"
+    },
+    "type": "evict"
+   },
+   {
+    "body": {
+     "digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "version": 2
+    },
+    "index": 5,
+    "prev": "b85c579425c68f9277c202e56576eb4a7948a969edaf5813ec1c74082da2cdac",
+    "sigs": {
+     "0": "b67abd4d4c982779778814a0ee5d5cb0767bace213ab8a8d5f8d1a940f0e93d5b8c23139a3e96c72ecb3a1f01756e64b9f95962755d49c85397eb4c9f8e85002",
+     "1": "04a1ae241302485cc25b07d0ac99ff701a405a7821d2c6aff02ae850dd603833b237725c4714003c94865f306561054e2a12d9d8670e606109c94635e7613b08"
+    },
+    "type": "topology"
+   }
+  ]
+ },
+ "policy": {
+  "allowed": {
+   "0": [
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+   ],
+   "11": [
+    "9999999999999999999999999999999999999999999999999999999999999999",
+    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+   ],
+   "2": [
+    "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+   ],
+   "3": [
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+   ],
+   "7": [
+    "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+   ]
+  },
+  "cases": [
+   {
+    "image": "30",
+    "ok": true,
+    "pcrs": {
+     "0": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "1": "1111111111111111111111111111111111111111111111111111111111111111",
+     "11": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+     "2": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "7": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+   },
+   {
+    "image": "31",
+    "ok": true,
+    "pcrs": {
+     "0": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "1": "1111111111111111111111111111111111111111111111111111111111111111",
+     "11": "9999999999999999999999999999999999999999999999999999999999999999",
+     "2": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "7": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+   },
+   {
+    "image": "30",
+    "ok": true,
+    "pcrs": {
+     "0": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "1": "1111111111111111111111111111111111111111111111111111111111111111",
+     "11": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+     "2": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "7": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   },
+   {
+    "error": "PCR 0 is 0000000000000000, not one the policy accepts",
+    "ok": false,
+    "pcrs": {
+     "0": "0000000000000000000000000000000000000000000000000000000000000000",
+     "1": "1111111111111111111111111111111111111111111111111111111111111111",
+     "11": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+     "2": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "7": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+   },
+   {
+    "error": "PCR 11 is 7777777777777777, not one the policy accepts",
+    "ok": false,
+    "pcrs": {
+     "0": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "1": "1111111111111111111111111111111111111111111111111111111111111111",
+     "11": "7777777777777777777777777777777777777777777777777777777777777777",
+     "2": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+     "3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "7": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+   },
+   {
+    "error": "PCR 2 is missing, not one the policy accepts",
+    "ok": false,
+    "pcrs": {
+     "0": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "1": "1111111111111111111111111111111111111111111111111111111111111111",
+     "11": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+     "3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+     "7": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+   }
+  ],
+  "document": {
+   "eeprom_configuration": [
+    {
+     "pcr3": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+   ],
+   "firmware": [
+    {
+     "pcr0": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+     "pcr0": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+   ],
+   "peripheral_firmware": [
+    {
+     "pcr2": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+   ],
+   "secure_boot": {
+    "pcr7": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+   },
+   "secure_boot_all": [
+    {
+     "pcr7": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    }
+   ],
+   "versions": [
+    {
+     "pcr11": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+     "version": "30"
+    },
+    {
+     "pcr11": "9999999999999999999999999999999999999999999999999999999999999999",
+     "version": "31"
+    }
+   ]
+  },
+  "empty_error": "the policy accepts no value for PCR 0"
+ },
+ "quorum": [
+  [
+   1,
+   1
+  ],
+  [
+   2,
+   2
+  ],
+  [
+   3,
+   2
+  ],
+  [
+   4,
+   3
+  ],
+  [
+   5,
+   4
+  ],
+  [
+   6,
+   4
+  ],
+  [
+   7,
+   5
+  ],
+  [
+   8,
+   6
+  ],
+  [
+   9,
+   6
+  ],
+  [
+   10,
+   7
+  ],
+  [
+   11,
+   8
+  ],
+  [
+   12,
+   8
+  ]
+ ],
+ "reset": {
+  "certificate": "-----BEGIN CERTIFICATE-----\nMIICmTCCAYGgAwIBAgIBATANBgkqhkiG9w0BAQsFADAQMQ4wDAYDVQQDDAVidWls\nZDAeFw0yNjAxMDEwMDAwMDBaFw0zNTEyMzAwMDAwMDBaMBAxDjAMBgNVBAMMBWJ1\naWxkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAymTFqu9gXuPwgrKT\nv95Usns79NNThKd8ZGvL+VtW/sQVm6UiyMM6fafmsTHoD+QRoVJQoM0xmo0lIUyh\nGSBA58VpHQG/xHNrCnYxi/ILvCkom/k2g9yDS2nHwE3qRn/WN2PT7Y8HB3jGKpIH\nkbNlXoo7Gb4h55IGwcKaLXVvA/fv0XShkCbhfS6Xt8r961HcCpm+uqpBl3sovN+Z\nRGLzOhemQBCxgk5YKVzHBlFBd8+ANHfeBBtY0V6ltZEWCzSaUsWMVqIu/jQxc4sE\niuvJ9ZE9kUexoW1Xu8/PbWDkf1pBwniOzp6dnrDxrhjMN7T6E9iUgFdbf/HOjCDb\nfv312QIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQBpwtx+UZyrI5vWcWls8AJ2BBs1\nMyoEiL8NYCSt35kHPZXckp/Z0/KISqjBJ6I0wiKUVIwlPxfydwUvl8cni7HyYTiO\n96UtAnOqfkirwAF3LESQ6ArYVSVcyOXZtIsaKfZ4oiQav7DtIL831OV6Xab/zrih\nHObEKDsbv4XRDlmXX3T3QNjhqRTLF/ZmcOb0LhH5ugFOaAGsXoQJJu9u1tbhTx6x\n7Wljf1mLwtdeUvRLiH61bV213U1DqQAAiuat7PlPkyG3jCDWWQEajo18so8ibi0T\n2rUHAF5AESPuwmP8LGHAWHjO4PhZ2yFklu1F6vSM2HI2Dh97i/bzctMwf16H\n-----END CERTIFICATE-----\n",
+  "entry": {
+   "body": {
+    "members": [
+     0,
+     1
+    ],
+    "reason": "lost quorum"
+   },
+   "build_sig": "H7JAWNCttIDZ66BQDv2pKqYjMbxSwr0qAseA4lPZjkaa86uMaHjJvDqsR/59odBl6ZAnX3qUnq/l7trahwRvYSXW7u9tvpAvAw/6lqI+ru9Pz3WZsmRgaVXsJJAospszfR0j0xS4oLlt7jIq+iRIGBTpS93EAWcSgkxv8KaUbB5oG+1t65VSNh0D4Gn2cvAikiBSWKGwCzVNEbLhAIU2zUq7Bezp2oay6FbxZoQOcwRvUE3Dd/zDyWWnJxwyQrOjU6sCxRkTLykMImSHVbMAJ7MUv43ZEkDKtwBJqogsv8ALlBrFLCiOFxmXI5t1nNRqrR3Sz0ikryk31ckFvIOgHA==",
+   "index": 6,
+   "prev": "00b86f796270171f91a9e92100138f03fc64eb7812d335cf2c1488e6913a012f",
+   "type": "reset"
+  },
+  "forged": {
+   "body": {
+    "members": [
+     0,
+     1
+    ],
+    "reason": "lost quorum"
+   },
+   "build_sig": "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA==",
+   "index": 6,
+   "prev": "00b86f796270171f91a9e92100138f03fc64eb7812d335cf2c1488e6913a012f",
+   "type": "reset"
+  }
+ },
+ "selector": [
+  {
+   "facts": {
+    "memory-gib": 8
+   },
+   "match": true,
+   "selector": {
+    "memory-gib": ">=4"
+   }
+  },
+  {
+   "facts": {
+    "memory-gib": 2
+   },
+   "match": false,
+   "selector": {
+    "memory-gib": ">=4"
+   }
+  },
+  {
+   "facts": {
+    "memory-gib": "8"
+   },
+   "match": true,
+   "selector": {
+    "memory-gib": ">=4"
+   }
+  },
+  {
+   "facts": {
+    "arch": "amd64"
+   },
+   "match": true,
+   "selector": {
+    "arch": [
+     "arm64",
+     "amd64"
+    ]
+   }
+  },
+  {
+   "facts": {
+    "arch": "riscv"
+   },
+   "match": false,
+   "selector": {
+    "arch": [
+     "arm64",
+     "amd64"
+    ]
+   }
+  },
+  {
+   "facts": {
+    "board": "pi4"
+   },
+   "match": true,
+   "selector": {
+    "board": "!=pi3"
+   }
+  },
+  {
+   "facts": {
+    "board": "pi3"
+   },
+   "match": false,
+   "selector": {
+    "board": "!=pi3"
+   }
+  },
+  {
+   "facts": {
+    "tpm": true
+   },
+   "match": true,
+   "selector": {
+    "tpm": true
+   }
+  },
+  {
+   "facts": {
+    "tpm": false
+   },
+   "match": false,
+   "selector": {
+    "tpm": true
+   }
+  },
+  {
+   "facts": {},
+   "match": false,
+   "selector": {
+    "disk-gib": ">=1"
+   }
+  },
+  {
+   "facts": {},
+   "match": true,
+   "selector": {}
+  },
+  {
+   "facts": {
+    "memory-gib": 2
+   },
+   "match": true,
+   "selector": {
+    "memory-gib": "<4"
+   }
+  },
+  {
+   "facts": {
+    "memory-gib": 4
+   },
+   "match": false,
+   "selector": {
+    "memory-gib": ">4"
+   }
+  },
+  {
+   "facts": {
+    "memory-gib": 4
+   },
+   "match": true,
+   "selector": {
+    "memory-gib": "<=4"
+   }
+  },
+  {
+   "facts": {
+    "cpu-count": 4
+   },
+   "match": true,
+   "selector": {
+    "cpu-count": 4
+   }
+  },
+  {
+   "facts": {
+    "cpu-count": 8
+   },
+   "match": false,
+   "selector": {
+    "cpu-count": 4
+   }
+  },
+  {
+   "facts": {
+    "arch": "arm64"
+   },
+   "match": true,
+   "selector": {
+    "arch": "arm64"
+   }
+  },
+  {
+   "facts": {
+    "memory-gib": "lots"
+   },
+   "match": false,
+   "selector": {
+    "memory-gib": ">=4"
+   }
+  }
+ ],
+ "token_request": [
+  "rpi-cluster token server abababababababababababababababababababab 3"
+ ],
+ "topology": {
+  "cases": [
+   {
+    "facts": {
+     "arch": "arm64",
+     "disk-gib": 900,
+     "memory-gib": 8
+    },
+    "held": [],
+    "roles": [
+     "server",
+     "ingress",
+     "data"
+    ],
+    "unmet": {
+     "server": 3
+    }
+   },
+   {
+    "facts": {
+     "arch": "arm64",
+     "disk-gib": 900,
+     "memory-gib": 8
+    },
+    "held": [
+     [
+      "server"
+     ],
+     [
+      "server"
+     ],
+     [
+      "server"
+     ],
+     [
+      "server"
+     ],
+     [
+      "server"
+     ]
+    ],
+    "roles": [
+     "agent",
+     "ingress"
+    ],
+    "unmet": {}
+   },
+   {
+    "facts": {
+     "arch": "arm64",
+     "disk-gib": 32,
+     "memory-gib": 2
+    },
+    "held": [],
+    "roles": [
+     "agent",
+     "ingress"
+    ],
+    "unmet": {
+     "server": 3
+    }
+   },
+   {
+    "facts": {
+     "arch": "arm64",
+     "disk-gib": 900,
+     "memory-gib": 8
+    },
+    "held": [
+     [
+      "server",
+      "data"
+     ]
+    ],
+    "roles": [
+     "server",
+     "ingress"
+    ],
+    "unmet": {
+     "server": 2
+    }
+   },
+   {
+    "facts": {
+     "arch": "riscv"
+    },
+    "held": [],
+    "roles": [
+     "ingress"
+    ],
+    "unmet": {
+     "server": 3
+    }
+   },
+   {
+    "facts": {
+     "arch": "arm64",
+     "disk-gib": 900,
+     "memory-gib": 8
+    },
+    "held": [
+     [
+      "server"
+     ],
+     [
+      "server"
+     ]
+    ],
+    "roles": [
+     "server",
+     "ingress",
+     "data"
+    ],
+    "unmet": {
+     "server": 1
+    }
+   }
+  ],
+  "digest": "907e19788dba94a2de5e80cf588bc43e0f4cb3b43aac6c6d44848ccc8d07a8a1",
+  "document": {
+   "roles": [
+    {
+     "conflicts": [
+      "agent"
+     ],
+     "max": 5,
+     "min": 3,
+     "name": "server",
+     "selector": {
+      "arch": "arm64",
+      "memory-gib": ">=4"
+     }
+    },
+    {
+     "conflicts": [
+      "server"
+     ],
+     "name": "agent",
+     "selector": {
+      "arch": "arm64"
+     }
+    },
+    {
+     "name": "ingress",
+     "selector": {}
+    },
+    {
+     "conflicts": [
+      "agent"
+     ],
+     "max": 1,
+     "name": "data",
+     "selector": {
+      "disk-gib": ">=500"
+     }
+    }
+   ],
+   "version": 7,
+   "vips": {
+    "ingress": [
+     "192.168.1.30",
+     "192.168.1.31"
+    ],
+    "server": [
+     "192.168.1.20",
+     "192.168.1.21",
+     "192.168.1.22"
+    ]
+   }
+  },
+  "invalid": [
+   {
+    "roles": [
+     {
+      "name": "a"
+     }
+    ],
+    "version": 0
+   },
+   {
+    "roles": [],
+    "version": 1
+   },
+   {
+    "roles": [
+     {
+      "name": "a"
+     },
+     {
+      "name": "a"
+     }
+    ],
+    "version": 1
+   },
+   {
+    "roles": [
+     {
+      "conflicts": [
+       "b"
+      ],
+      "name": "a"
+     }
+    ],
+    "version": 1
+   },
+   {
+    "roles": [
+     {
+      "max": 2,
+      "min": 3,
+      "name": "a"
+     }
+    ],
+    "version": 1
+   },
+   {
+    "roles": [
+     {
+      "extra": 1,
+      "name": "a"
+     }
+    ],
+    "version": 1
+   }
+  ]
+ }
+}
