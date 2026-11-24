@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -48,6 +49,8 @@ func runTool(environment []string, name string, arguments ...string) ([]byte, er
 	return stdout.Bytes(), nil
 }
 
+var tpmSequence sync.Mutex
+
 type TPMProver struct{ Environment []string }
 
 func (prover *TPMProver) tool(name string, arguments ...string) ([]byte, error) {
@@ -83,6 +86,8 @@ func workDir() (string, func()) {
 }
 
 func (prover *TPMProver) Hello() (Obj, error) {
+	tpmSequence.Lock()
+	defer tpmSequence.Unlock()
 	work, cleanup := workDir()
 	defer cleanup()
 	if err := prover.prepare(work); err != nil {
@@ -102,6 +107,8 @@ func (prover *TPMProver) Hello() (Obj, error) {
 }
 
 func (prover *TPMProver) Answer(challenge string) (string, error) {
+	tpmSequence.Lock()
+	defer tpmSequence.Unlock()
 	work, cleanup := workDir()
 	defer cleanup()
 	if err := prover.prepare(work); err != nil {
@@ -131,6 +138,8 @@ func (prover *TPMProver) Answer(challenge string) (string, error) {
 }
 
 func (prover *TPMProver) Quote(qualifying string) (Obj, error) {
+	tpmSequence.Lock()
+	defer tpmSequence.Unlock()
 	work, cleanup := workDir()
 	defer cleanup()
 	if err := prover.prepare(work); err != nil {

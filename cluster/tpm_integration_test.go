@@ -114,3 +114,24 @@ func TestClusterFormsWithRealAttestation(t *testing.T) {
 		t.Fatal("three distinct endorsement keys expected")
 	}
 }
+
+func TestSwtpmAnswersConcurrentAttestations(t *testing.T) {
+	prover := &TPMProver{Environment: startSwtpm(t, 2371)}
+	hello, err := prover.Hello()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ek, _ := EKHash(hello)
+	errors := make(chan error, 6)
+	for index := 0; index < 6; index++ {
+		go func() {
+			_, err := Attest(prover, TPMVerifier{}, ek, NewNonce(), repeat("ab"), repeat("cd"))
+			errors <- err
+		}()
+	}
+	for index := 0; index < 6; index++ {
+		if err := <-errors; err != nil {
+			t.Errorf("concurrent attestation %d: %v", index, err)
+		}
+	}
+}
