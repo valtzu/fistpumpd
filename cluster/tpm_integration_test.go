@@ -3,15 +3,18 @@
 package cluster
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 )
 
 var zero = repeat("0")
 
-func startSwtpm(t *testing.T, data int) {
+func startSwtpm(t *testing.T, data int) []string {
 	t.Helper()
 	command := exec.Command("swtpm", "socket", "--tpmstate", "dir="+t.TempDir(), "--tpm2", "--ctrl", fmt.Sprintf("type=tcp,port=%d", data+1),
 		"--server", fmt.Sprintf("type=tcp,port=%d", data), "--flags", "not-need-init,startup-clear")
@@ -19,12 +22,35 @@ func startSwtpm(t *testing.T, data int) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = command.Process.Kill(); _ = command.Wait() })
+	time.Sleep(1500 * time.Millisecond)
+
+	bus := exec.Command("dbus-daemon", "--session", "--nofork", "--print-address")
+	output, err := bus.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bus.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = bus.Process.Kill(); _ = bus.Wait() })
+	address, err := bufio.NewReader(output).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	address = strings.TrimSpace(address)
+
+	broker := exec.Command("tpm2-abrmd", "--session", "--allow-root", fmt.Sprintf("--tcti=swtpm:host=127.0.0.1,port=%d", data))
+	broker.Env = append(os.Environ(), "DBUS_SESSION_BUS_ADDRESS="+address)
+	if err := broker.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = broker.Process.Kill(); _ = broker.Wait() })
+	time.Sleep(1500 * time.Millisecond)
+	return []string{"DBUS_SESSION_BUS_ADDRESS=" + address, "TPM2TOOLS_TCTI=tabrmd:bus_type=session"}
 }
 
 func TestSwtpmAttestationRoundTrip(t *testing.T) {
-	startSwtpm(t, 2321)
-	time.Sleep(1500 * time.Millisecond)
-	prover := &TPMProver{Environment: []string{"TPM2TOOLS_TCTI=swtpm:host=127.0.0.1,port=2321"}}
+	prover := &TPMProver{Environment: startSwtpm(t, 2321)}
 	hello, err := prover.Hello()
 	if err != nil {
 		t.Fatal(err)
@@ -52,11 +78,10 @@ func TestSwtpmAttestationRoundTrip(t *testing.T) {
 }
 
 func TestClusterFormsWithRealAttestation(t *testing.T) {
-	ports := []int{2341, 2351, 2361}
-	for _, port := range ports {
-		startSwtpm(t, port)
+	var environments [][]string
+	for _, port := range []int{2341, 2351, 2361} {
+		environments = append(environments, startSwtpm(t, port))
 	}
-	time.Sleep(2 * time.Second)
 	r := newRig(t, 3)
 	r.verifier = TPMVerifier{}
 	r.document = Obj{
@@ -67,7 +92,7 @@ func TestClusterFormsWithRealAttestation(t *testing.T) {
 		"eeprom_configuration": []any{Obj{"pcr3": zero}},
 	}
 	r.tpmFor = func(index int) Prover {
-		return &TPMProver{Environment: []string{fmt.Sprintf("TPM2TOOLS_TCTI=swtpm:host=127.0.0.1,port=%d", ports[index])}}
+		return &TPMProver{Environment: environments[index]}
 	}
 	r.start(0, nil)
 	if !r.wait(func() bool { return r.daemons[0].Node() != nil }, 120) {

@@ -15,8 +15,6 @@ import (
 )
 
 const (
-	ekHandle    = "0x81010001"
-	akHandle    = "0x81010002"
 	bank        = "sha256"
 	digestBytes = 32
 )
@@ -62,41 +60,18 @@ func (prover *TPMProver) flush() {
 	}
 }
 
-func (prover *TPMProver) persistent(work, handle string, create func() error) error {
-	if _, err := prover.tool("tpm2_readpublic", "-c", handle, "-o", filepath.Join(work, "probe.pub")); err == nil {
-		return nil
-	}
-	return create()
-}
+const akAttributes = "fixedtpm|fixedparent|sensitivedataorigin|userwithauth|restricted|sign|noda"
+
+func ekContext(work string) string { return filepath.Join(work, "ek.ctx") }
+func akContext(work string) string { return filepath.Join(work, "ak.ctx") }
 
 func (prover *TPMProver) prepare(work string) error {
 	prover.flush()
-	createEK := func() error {
-		context := filepath.Join(work, "ek.ctx")
-		if _, err := prover.tool("tpm2_createek", "-c", context, "-G", "ecc"); err != nil {
-			return err
-		}
-		if _, err := prover.tool("tpm2_evictcontrol", "-C", "o", "-c", context, ekHandle); err != nil {
-			return err
-		}
-		prover.flush()
-		return nil
-	}
-	createAK := func() error {
-		context := filepath.Join(work, "ak.ctx")
-		if _, err := prover.tool("tpm2_createak", "-C", ekHandle, "-c", context, "-G", "ecc", "-g", bank, "-s", "ecdsa"); err != nil {
-			return err
-		}
-		if _, err := prover.tool("tpm2_evictcontrol", "-C", "o", "-c", context, akHandle); err != nil {
-			return err
-		}
-		prover.flush()
-		return nil
-	}
-	if err := prover.persistent(work, ekHandle, createEK); err != nil {
+	if _, err := prover.tool("tpm2_createek", "-c", ekContext(work), "-G", "ecc", "-u", filepath.Join(work, "ek.pub")); err != nil {
 		return err
 	}
-	return prover.persistent(work, akHandle, createAK)
+	_, err := prover.tool("tpm2_createprimary", "-C", "o", "-c", akContext(work), "-G", "ecc256:ecdsa-sha256:null", "-g", bank, "-a", akAttributes)
+	return err
 }
 
 func workDir() (string, func()) {
@@ -113,10 +88,7 @@ func (prover *TPMProver) Hello() (Obj, error) {
 	if err := prover.prepare(work); err != nil {
 		return nil, err
 	}
-	if _, err := prover.tool("tpm2_readpublic", "-c", ekHandle, "-o", filepath.Join(work, "ek.pub")); err != nil {
-		return nil, err
-	}
-	if _, err := prover.tool("tpm2_readpublic", "-c", akHandle, "-o", filepath.Join(work, "ak.pub"), "-n", filepath.Join(work, "ak.name")); err != nil {
+	if _, err := prover.tool("tpm2_readpublic", "-c", akContext(work), "-o", filepath.Join(work, "ak.pub"), "-n", filepath.Join(work, "ak.name")); err != nil {
 		return nil, err
 	}
 	ek, _ := os.ReadFile(filepath.Join(work, "ek.pub"))
@@ -150,7 +122,7 @@ func (prover *TPMProver) Answer(challenge string) (string, error) {
 	if _, err := prover.tool("tpm2_policysecret", "-S", session, "-c", "e"); err != nil {
 		return "", err
 	}
-	if _, err := prover.tool("tpm2_activatecredential", "-c", akHandle, "-C", ekHandle, "-i", filepath.Join(work, "cred.blob"),
+	if _, err := prover.tool("tpm2_activatecredential", "-c", akContext(work), "-C", ekContext(work), "-i", filepath.Join(work, "cred.blob"),
 		"-o", filepath.Join(work, "secret.out"), "-P", "session:"+session); err != nil {
 		return "", err
 	}
@@ -170,7 +142,7 @@ func (prover *TPMProver) Quote(qualifying string) (Obj, error) {
 		if _, err := prover.tool("tpm2_pcrread", pcrList(), "-o", before); err != nil {
 			return nil, err
 		}
-		if _, err := prover.tool("tpm2_quote", "-c", akHandle, "-l", pcrList(), "-q", qualifying, "-m", filepath.Join(work, "quote.msg"),
+		if _, err := prover.tool("tpm2_quote", "-c", akContext(work), "-l", pcrList(), "-q", qualifying, "-m", filepath.Join(work, "quote.msg"),
 			"-s", filepath.Join(work, "quote.sig"), "-g", bank); err != nil {
 			return nil, err
 		}
