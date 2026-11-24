@@ -34,9 +34,9 @@ func fakeRoot(t *testing.T, kib int, disks map[string]int, usrSource, model stri
 }
 
 func TestFactsCollect(t *testing.T) {
-	root := fakeRoot(t, 8*1024*1024, map[string]int{"mmcblk0": 32, "sda": 900}, "/dev/mmcblk0p2", "Raspberry Pi 4 Model B Rev 1.5")
+	root := fakeRoot(t, 8*1024*1024, map[string]int{"mmcblk0": 32, "sda": 900}, "/dev/mmcblk0p2", "Acme Board Model 2 Rev 1.5")
 	facts := CollectFacts(root)
-	if facts["memory-gib"] != 8 || facts["disk-gib"] != 900 || facts["board"] != "raspberry-pi-4-model-b-rev-1-5" || facts["tpm"] != true {
+	if facts["memory-gib"] != 8 || facts["disk-gib"] != 900 || facts["board"] != "acme-board-model-2-rev-1-5" || facts["tpm"] != true {
 		t.Fatalf("%v", facts)
 	}
 }

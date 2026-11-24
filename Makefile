@@ -1,5 +1,5 @@
 GO_IMAGE ?= fistpumpd-test
-RUN = podman run --rm -v $(CURDIR):/src -v rpi-gocache:/root/.cache -w /src $(GO_IMAGE)
+RUN = podman run --rm -v $(CURDIR):/src -v fistpumpd-gocache:/root/.cache -w /src $(GO_IMAGE)
 
 test:
 	$(RUN) go test -race ./...

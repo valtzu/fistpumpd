@@ -42,23 +42,16 @@ func number(value any) (float64, error) {
 	return 0, fmt.Errorf("%v is not a number", value)
 }
 
-func pythonString(value any) string {
+func displayString(value any) string {
 	switch typed := value.(type) {
 	case bool:
-		if typed {
-			return "True"
-		}
-		return "False"
+		return strconv.FormatBool(typed)
 	case string:
 		return typed
 	case json.Number:
 		return typed.String()
 	case float64:
-		text := strconv.FormatFloat(typed, 'f', -1, 64)
-		if typed == float64(int64(typed)) {
-			return text + ".0"
-		}
-		return text
+		return strconv.FormatFloat(typed, 'f', -1, 64)
 	}
 	return fmt.Sprint(value)
 }
@@ -77,11 +70,11 @@ func compare(fact, expression any) (bool, error) {
 	case string:
 		operator := leadingOperator(typed)
 		if operator == "" {
-			return pythonString(fact) == typed, nil
+			return displayString(fact) == typed, nil
 		}
 		operand := strings.TrimSpace(typed[len(operator):])
 		if operator == "!=" {
-			return pythonString(fact) != operand, nil
+			return displayString(fact) != operand, nil
 		}
 		left, err := number(fact)
 		if err != nil {
