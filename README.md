@@ -20,8 +20,7 @@ Every node runs `fistpumpd daemon`. On boot it looks for members on the local ne
 Once admitted, a node derives its configuration from the log alone:
 
 - role markers and machine tags,
-- [keepalived](https://www.keepalived.org/) configuration, with priorities that spread the floating addresses evenly over the nodes that hold a role,
-- [k3s](https://k3s.io/) settings, with `cluster-init` on the first server and a join address for the rest,
+- configuration files rendered from templates in the signed topology, for any service: the templates see the members, their roles, the floating addresses and the node's rank, so f.e. [keepalived](https://www.keepalived.org/) priorities spread the floating addresses evenly and [k3s](https://k3s.io/) gets `cluster-init` on the first server and a join address for the rest,
 - the k3s tokens, which the first server creates and the others fetch from a member over pinned TLS.
 
 The protocol itself is described in [docs/protocol.md](docs/protocol.md).

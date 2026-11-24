@@ -86,10 +86,22 @@ The node gets the first matching, non-conflicting, uncapped roles. Roles are fix
 
 On every change of the log, from the log alone:
 
-- **Roles**: markers in `/etc/node-role.d/` and machine tags (`hostnamectl tags`).
-- **keepalived**: `/run/fistpumpd/keepalived.conf`. For each floating address of a role the node holds, the priority is `100 - ((rank - index) mod n) * step`, where `rank` is the node's position among the holders of that role and `n` their number. Addresses spread evenly over any set of nodes. Health checks gate each address: the Kubernetes API check for `server`, an HTTP check for `ingress`.
-- **k3s**: `/etc/rancher/k3s/config.yaml.d/10-role.yaml` with `tls-san+` for the server addresses, `cluster-init` on the first server ever admitted and `server: https://<first server address>:6443` for everyone else. `/run/fistpumpd/k3s-ready` appears once the log holds the genesis minimum of members. A unit that should wait for the cluster can require that file.
-- **Tokens**: the first server creates the server and agent tokens. The other members fetch them from a member over pinned TLS, with a challenge signed by their log key. Servers get both tokens, agents only the agent token. They are stored with `systemd-creds`, sealed to the TPM.
+- **Roles**: markers in `/etc/machine-role.d/` and machine tags (`hostnamectl tags`).
+- **Files**: the topology's `files` list. Each entry has an absolute `path`, an optional octal `mode`, an optional `roles` list (the file is written only on a node that holds one of them) and a `template`. The text is Go `text/template`, rendered from the log alone, so every member that sees the same log renders the same text. A file whose text is empty is removed. `reload` names a unit that gets `systemctl reload-or-restart` when the text changes, `start` a unit that gets `systemctl start --no-block`, and `stop` a unit that is stopped when the file is removed. Paths under `/run/fistpumpd/` are in the daemon's run directory.
+
+Template values:
+
+| Value | Meaning |
+|---|---|
+| `.Slot`, `.Rank`, `.Members`, `.MinMembers`, `.Roles`, `.Topology`, `.Interface` | the node's slot and rank, the number of active members, the genesis minimum, the node's roles, the topology version and the network interface |
+| `.Holds "role"` | whether this node holds the role |
+| `.RankIn "role"`, `.Count "role"` | this node's position among the holders of the role, and how many hold it |
+| `.IsFirst "role"` | whether this node is the first member ever admitted to the role |
+| `.Vips "group"`, `.VipGroups` | the addresses of a floating address group, and the sorted group names |
+| `priority rank count index` | the priority `100 - ((rank - index) mod count) * step`, where `step = max(1, min(10, 90 / count))`, which spreads floating addresses evenly over any set of nodes |
+| `add`, `mul`, `upper`, `join`, `dict` | helpers; `and`, `or`, `index`, `ge` and the other built-ins work too |
+
+- **Tokens**: for k3s, the first server creates the server and agent tokens. The other members fetch them from a member over pinned TLS, with a challenge signed by their log key. Servers get both tokens, agents only the agent token. They are stored with `systemd-creds`, sealed to the TPM.
 
 ## Network
 

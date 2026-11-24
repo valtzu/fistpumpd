@@ -156,6 +156,15 @@ func status() error {
 		}
 		fmt.Printf("  slot %-3v %-22v roles %-24s %s\n", member["slot"], node["addr"], roles, health)
 	}
+	roleList, _ := reply["roles"].([]any)
+	for _, item := range roleList {
+		role := item.(cluster.Obj)
+		upper := "any"
+		if limit, bounded := role["max"]; bounded {
+			upper = fmt.Sprint(limit)
+		}
+		fmt.Printf("  role %-12v want %v..%-4s held %-3v ready %v\n", role["name"], role["min"], upper, role["held"], role["ready"])
+	}
 	return nil
 }
 

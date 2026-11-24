@@ -552,6 +552,9 @@ func (d *Daemon) Handle(method string, payload Obj) (Obj, error) {
 				members = append(members, Obj{"slot": member.Slot, "node": member.Node, "roles": toAny(member.Roles), "status": member.Status})
 			}
 			reply["slot"], reply["members"], reply["head"], reply["length"] = node.Slot(), members, head, length
+			d.mutex.Lock()
+			reply["roles"] = roleStatus(d.topology, active, d.failing)
+			d.mutex.Unlock()
 		}
 		return reply, nil
 	case "log":
@@ -652,4 +655,26 @@ func sortedKeys(values map[int]time.Time) []int {
 	}
 	sort.Ints(keys)
 	return keys
+}
+
+func roleStatus(topology *Topology, active []*Member, failing map[int]time.Time) []any {
+	var roles []any
+	for _, role := range topology.Roles {
+		held, ready := 0, 0
+		for _, member := range active {
+			if !contains(member.Roles, role.Name) {
+				continue
+			}
+			held++
+			if _, bad := failing[member.Slot]; !bad {
+				ready++
+			}
+		}
+		entry := Obj{"name": role.Name, "min": role.Min, "held": held, "ready": ready}
+		if role.Max != nil {
+			entry["max"] = *role.Max
+		}
+		roles = append(roles, entry)
+	}
+	return roles
 }
