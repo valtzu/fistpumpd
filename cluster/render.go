@@ -70,7 +70,11 @@ func parseFiles(given any) ([]FileSpec, error) {
 			}
 			mode = os.FileMode(number)
 		}
-		compiled, err := template.New(path).Option("missingkey=error").Funcs(templateFunctions).Parse(str(entry, "template"))
+		text, err := templateText(entry["template"])
+		if err != nil {
+			return nil, fmt.Errorf("%s: %v", path, err)
+		}
+		compiled, err := template.New(path).Option("missingkey=error").Funcs(templateFunctions).Parse(text)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %v", path, err)
 		}
@@ -80,6 +84,24 @@ func parseFiles(given any) ([]FileSpec, error) {
 		})
 	}
 	return files, nil
+}
+
+func templateText(given any) (string, error) {
+	switch typed := given.(type) {
+	case string:
+		return typed, nil
+	case []any:
+		lines := make([]string, 0, len(typed))
+		for _, line := range typed {
+			text, isString := line.(string)
+			if !isString {
+				return "", fmt.Errorf("a template is a string or a list of lines")
+			}
+			lines = append(lines, text)
+		}
+		return stdstrings.Join(lines, "\n"), nil
+	}
+	return "", fmt.Errorf("a template is a string or a list of lines")
 }
 
 type View struct {
