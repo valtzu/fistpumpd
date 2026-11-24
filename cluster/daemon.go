@@ -15,7 +15,10 @@ import (
 	"time"
 )
 
-const policyMaxAge = 3600 * time.Second
+const (
+	policyMaxAge         = 3600 * time.Second
+	policyRefusalRefresh = 15 * time.Second
+)
 
 type Paths struct {
 	State     string
@@ -162,6 +165,17 @@ func (d *Daemon) currentPolicy() *Policy {
 	return d.policy
 }
 
+func (d *Daemon) refreshPolicyAfterRefusal() *Policy {
+	d.mutex.Lock()
+	recent := time.Since(d.policyTime) < policyRefusalRefresh
+	current := d.policy
+	d.mutex.Unlock()
+	if recent {
+		return current
+	}
+	return d.loadPolicy(true)
+}
+
 func (d *Daemon) loadPolicy(force bool) *Policy {
 	d.mutex.Lock()
 	fresh := d.policy != nil && !force && time.Since(d.policyTime) < policyMaxAge
@@ -197,7 +211,7 @@ func (d *Daemon) nodeConfig() Config {
 	return Config{
 		Key: d.key, Record: d.record, Facts: d.facts, Store: d.store, Topology: d.currentTopology(), Policy: d.currentPolicy(),
 		Verifier: d.cfg.Verifier, Transport: d.transport, BuildCertificate: d.cfg.BuildCertificate, Observer: observer{d},
-		OnChange: d.changed, TPM: d.cfg.TPM, Tokens: d.tokens,
+		OnChange: d.changed, TPM: d.cfg.TPM, Tokens: d.tokens, PolicyRefresh: d.refreshPolicyAfterRefusal,
 	}
 }
 
@@ -351,7 +365,9 @@ func (d *Daemon) attestMember(member *Member) bool {
 	prover := d.transport.Prover(member.Addr(), str(member.Node, "tls_fp"))
 	pcrs, err := Attest(prover, d.cfg.Verifier, str(member.Node, "ek_hash"), NewNonce(), member.SignPub(), str(member.Node, "tls_fp"))
 	if err == nil {
-		_, err = d.loadPolicy(false).Check(pcrs)
+		if _, err = d.loadPolicy(false).Check(pcrs); err != nil {
+			_, err = d.refreshPolicyAfterRefusal().Check(pcrs)
+		}
 	}
 	if err != nil {
 		log.Printf("slot %d failed attestation: %v", member.Slot, err)

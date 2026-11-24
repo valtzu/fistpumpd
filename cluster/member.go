@@ -54,6 +54,7 @@ type Config struct {
 	OnChange         func(*Node)
 	TPM              Prover
 	Tokens           TokenSource
+	PolicyRefresh    func() *Policy
 }
 
 func (cfg *Config) clock() float64 {
@@ -140,6 +141,15 @@ func (node *Node) Policy() *Policy {
 	node.mu.Lock()
 	defer node.mu.Unlock()
 	return node.policy
+}
+
+func (node *Node) checkPolicy(pcrs map[string]string) (string, error) {
+	image, err := node.Policy().Check(pcrs)
+	if err == nil || node.cfg.PolicyRefresh == nil {
+		return image, err
+	}
+	node.SetPolicy(node.cfg.PolicyRefresh())
+	return node.Policy().Check(pcrs)
 }
 
 func (node *Node) SetPolicy(policy *Policy) {
@@ -502,7 +512,7 @@ func (node *Node) validateAdmit(entry Obj) error {
 	if err != nil {
 		return err
 	}
-	image, err := node.Policy().Check(pcrs)
+	image, err := node.checkPolicy(pcrs)
 	if err != nil {
 		return refuse("%s", err.Error())
 	}
@@ -677,7 +687,7 @@ func (node *Node) onJoin(payload Obj) (Obj, error) {
 	if err != nil {
 		return nil, err
 	}
-	image, err := node.Policy().Check(pcrs)
+	image, err := node.checkPolicy(pcrs)
 	if err != nil {
 		return nil, refuse("%s", err.Error())
 	}
