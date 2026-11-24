@@ -49,10 +49,6 @@ func testTopology(t testing.TB) *Topology {
 
 var bigFacts = Obj{"memory-gib": 8, "arch": "arm64"}
 
-type Handler interface {
-	Handle(method string, payload Obj) (Obj, error)
-}
-
 type Network struct {
 	mutex sync.Mutex
 	nodes map[string]Handler
