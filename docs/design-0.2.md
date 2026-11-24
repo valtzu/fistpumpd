@@ -79,6 +79,15 @@ A group in `vips` gets a `source`:
 
 For `dhcp`, the group has a `name` that the router's DNS resolves. Configuration refers to the name, so no member needs the address before it holds the lease. If a configuration needs the address itself, a `vip` log entry records the leased address, signed by a quorum, and `.Vip` reads it.
 
+## Read API (later stage)
+
+Every member can serve a small Kubernetes-style HTTP API from its copy of the log, so `kubectl` can list members and roles without a cluster:
+
+- Discovery, and `get`, `list` and `watch` for members and roles, shaped like `Machine` and `MachineSet`, with the facts as labels. `clusterctl` is out of scope, because it needs CRDs, a provider inventory and a `Cluster` object.
+- Clients authenticate with mTLS. The topology lists the client CAs, and a client is read-only unless the topology lists its key as an admin.
+- A change, such as the machine tags of a member, is an `annotate` log entry signed by an admin key and applied after a quorum signs it, in the way a `reset` is signed with the build key. Members apply the tags of their slot.
+- Any member answers, including through a floating address, because the log is replicated.
+
 ## Compatibility
 
 This changes the topology schema and the role marker path, so it is breaking: the minor version goes up. Members of 0.1.x and 0.2.0 do not mix in one cluster.
