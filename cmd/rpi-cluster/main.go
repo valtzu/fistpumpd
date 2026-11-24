@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -50,6 +51,8 @@ func main() {
 		err = resetSign(arguments)
 	case "submit":
 		err = submit(arguments)
+	case "verify":
+		err = verify(arguments)
 	default:
 		usage()
 	}
@@ -60,7 +63,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: rpi-cluster daemon | status | log | evict SLOT [--reason TEXT] | reset-sign --log FILE --key FILE --certificate FILE --keep SLOTS | submit FILE")
+	fmt.Fprintln(os.Stderr, "usage: rpi-cluster daemon | status | log | evict SLOT [--reason TEXT] | reset-sign --log FILE --key FILE --certificate FILE --keep SLOTS | submit FILE | verify [--certificate FILE] < log.json")
 	os.Exit(2)
 }
 
@@ -303,6 +306,47 @@ func submit(arguments []string) error {
 		return err
 	}
 	out, _ := json.Marshal(reply)
+	fmt.Println(string(out))
+	return nil
+}
+
+func verify(arguments []string) error {
+	flags := flag.NewFlagSet("verify", flag.ExitOnError)
+	certFile := flags.String("certificate", "", "build certificate (PEM), needed to accept reset entries")
+	_ = flags.Parse(arguments)
+	var certificate []byte
+	if *certFile != "" {
+		var err error
+		if certificate, err = os.ReadFile(*certFile); err != nil {
+			return err
+		}
+	}
+	data, err := io.ReadAll(io.LimitReader(os.Stdin, 64<<20))
+	if err != nil {
+		return err
+	}
+	document, err := cluster.Decode(data)
+	if err != nil {
+		return err
+	}
+	var entries []any
+	switch typed := document.(type) {
+	case cluster.Obj:
+		entries, _ = typed["entries"].([]any)
+	case []any:
+		entries = typed
+	}
+	chain := cluster.NewChain(certificate)
+	for _, item := range entries {
+		entry, ok := item.(cluster.Obj)
+		if !ok {
+			return fmt.Errorf("an entry is an object")
+		}
+		if err := chain.Append(entry); err != nil {
+			return fmt.Errorf("entry %v: %v", entry["index"], err)
+		}
+	}
+	out, _ := json.Marshal(cluster.Summarize(chain))
 	fmt.Println(string(out))
 	return nil
 }

@@ -234,3 +234,22 @@ func TestApplyVectors(t *testing.T) {
 		t.Errorf("token request vector %v", vectors(t)["token_request"])
 	}
 }
+
+func TestSummarizeAndDescribe(t *testing.T) {
+	chain := NewChain(nil)
+	for _, entry := range vectors(t)["chain"].(Obj)["entries"].([]any) {
+		if err := chain.Append(entry.(Obj)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	summary := Summarize(chain)
+	if len(summary["entries"].([]any)) != 6 || summary["topology"] != 2 {
+		t.Fatalf("%v", summary)
+	}
+	if got := summary["entries"].([]any)[0].(Obj)["text"]; got != "slot 0 admitted at 10.0.0.1:17947 with roles server, ingress (founder)" {
+		t.Fatalf("%v", got)
+	}
+	if got := Describe(chain.Entries[4]); got != "slot 3 evicted: failed attestation" {
+		t.Fatalf("%v", got)
+	}
+}
