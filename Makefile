@@ -7,13 +7,10 @@ test:
 test-tpm:
 	$(RUN) go test -tags swtpm -race -timeout 600s ./cluster
 
-vectors:
-	python3 reference/gen_vectors.py testdata/vectors.json
-
 build:
 	$(RUN) sh -c 'for arch in arm64 amd64; do CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -trimpath -ldflags "-s -w" -o out/fistpumpd-$$arch ./cmd/fistpumpd; done'
 
 image:
 	podman build -t $(GO_IMAGE) -f Containerfile.test .
 
-.PHONY: test test-tpm vectors build image
+.PHONY: test test-tpm build image
