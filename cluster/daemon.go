@@ -21,11 +21,12 @@ const (
 )
 
 type Paths struct {
-	State     string
-	Run       string
-	Topology  string
-	Root      string
-	Credstore string
+	State      string
+	Run        string
+	Topology   string
+	Topologies []string
+	Root       string
+	Credstore  string
 }
 
 type DaemonConfig struct {
@@ -134,8 +135,17 @@ func (d *Daemon) Node() *Node {
 	return d.node
 }
 
+func (d *Daemon) topologyPath() string {
+	for _, path := range d.cfg.Paths.Topologies {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return d.cfg.Paths.Topology
+}
+
 func (d *Daemon) loadTopology() error {
-	data, err := os.ReadFile(d.cfg.Paths.Topology)
+	data, err := os.ReadFile(d.topologyPath())
 	if err != nil {
 		return err
 	}
@@ -263,15 +273,14 @@ func (d *Daemon) startAPI(host string) error {
 	if d.cfg.Genesis.APIPort <= 0 {
 		return nil
 	}
-	clientCA, err := os.ReadFile(d.cfg.Genesis.APIClientCA)
-	if err != nil {
+	if !anyReadable(d.cfg.Genesis.APIClientCAs) {
 		return nil
 	}
 	bind := fmt.Sprintf(":%d", d.cfg.Genesis.APIPort)
 	if host == "127.0.0.1" || host == "::1" {
 		bind = net.JoinHostPort(host, strconv.Itoa(d.cfg.Genesis.APIPort))
 	}
-	server, err := StartKubeAPI(NewKubeAPI(d.apiSnapshot), bind, d.tlsCert, d.tlsKey, clientCA)
+	server, err := StartKubeAPI(NewKubeAPI(d.apiSnapshot), bind, d.tlsCert, d.tlsKey, d.cfg.Genesis.APIClientCAs)
 	if err != nil {
 		log.Printf("read API: %v", err)
 		return nil
@@ -493,7 +502,7 @@ func (d *Daemon) housekeeping(ctx context.Context) {
 }
 
 func (d *Daemon) reloadTopology(node *Node) {
-	data, err := os.ReadFile(d.cfg.Paths.Topology)
+	data, err := os.ReadFile(d.topologyPath())
 	if err != nil {
 		return
 	}

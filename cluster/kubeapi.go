@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	stdstrings "strings"
 	"time"
@@ -263,19 +264,37 @@ func machineSetTable(roles []APIRole) table {
 	return t
 }
 
-func StartKubeAPI(handler http.Handler, bind, certFile, keyFile string, clientCA []byte) (*Server, error) {
+func clientPool(caFiles []string) *x509.CertPool {
+	pool := x509.NewCertPool()
+	for _, path := range caFiles {
+		if data, err := os.ReadFile(path); err == nil {
+			pool.AppendCertsFromPEM(data)
+		}
+	}
+	return pool
+}
+
+func anyReadable(paths []string) bool {
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+func StartKubeAPI(handler http.Handler, bind, certFile, keyFile string, clientCAFiles []string) (*Server, error) {
 	certificate, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, err
 	}
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(clientCA) {
-		return nil, fmt.Errorf("the client CA holds no certificate")
+	base := &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS13, ClientAuth: tls.RequireAndVerifyClientCert}
+	base.GetConfigForClient = func(*tls.ClientHelloInfo) (*tls.Config, error) {
+		config := base.Clone()
+		config.ClientCAs = clientPool(clientCAFiles)
+		return config, nil
 	}
-	listener, err := tls.Listen("tcp", bind, &tls.Config{
-		Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS13,
-		ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool,
-	})
+	listener, err := tls.Listen("tcp", bind, base)
 	if err != nil {
 		return nil, err
 	}

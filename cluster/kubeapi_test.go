@@ -145,7 +145,10 @@ func TestOnlyAClientWithACertificateFromTheCAIsServed(t *testing.T) {
 	certFile, keyFile := filepath.Join(dir, "cert.pem"), filepath.Join(dir, "key.pem")
 	_ = os.WriteFile(certFile, serverPEM, 0o600)
 	_ = os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: serverKeyDER}), 0o600)
-	server, err := StartKubeAPI(NewKubeAPI(sampleSnapshot), "127.0.0.1:0", certFile, keyFile, caPEM)
+	caFile := filepath.Join(dir, "ca.pem")
+	late := filepath.Join(dir, "late-ca.pem")
+	_ = os.WriteFile(caFile, caPEM, 0o600)
+	server, err := StartKubeAPI(NewKubeAPI(sampleSnapshot), "127.0.0.1:0", certFile, keyFile, []string{late, caFile})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,4 +174,23 @@ func TestOnlyAClientWithACertificateFromTheCAIsServed(t *testing.T) {
 	if response.StatusCode != 200 {
 		t.Fatalf("status %d", response.StatusCode)
 	}
+	lateCATemplate := &x509.Certificate{SerialNumber: big.NewInt(10), Subject: pkix.Name{CommonName: "late ca"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	lateCA, lateKey, lateCAPEM := issue(t, lateCATemplate, nil, nil)
+	lateClientTemplate := &x509.Certificate{SerialNumber: big.NewInt(11), Subject: pkix.Name{CommonName: "proxy"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}
+	_, lateClientKey, lateClientPEM := issue(t, lateClientTemplate, lateCA, lateKey)
+	lateKeyDER, _ := x509.MarshalECPrivateKey(lateClientKey)
+	latePair, err := tls.X509KeyPair(lateClientPEM, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: lateKeyDER}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response, err := client([]tls.Certificate{latePair}).Get(url); err == nil {
+		response.Body.Close()
+		t.Fatal("a certificate from a CA that does not exist yet must be refused")
+	}
+	_ = os.WriteFile(late, lateCAPEM, 0o600)
+	again, err := client([]tls.Certificate{latePair}).Get(url)
+	if err != nil {
+		t.Fatalf("a CA that appears after the start must be trusted: %v", err)
+	}
+	again.Body.Close()
 }

@@ -3,6 +3,7 @@ package cluster
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -115,6 +116,7 @@ type View struct {
 	topology      *Topology
 	holders       map[string][]int
 	first         map[string]int
+	addresses     map[int]string
 	CreatesTokens bool
 	NeedsTokens   []string
 }
@@ -135,6 +137,18 @@ func (view *View) RankIn(role string) int {
 func (view *View) IsFirst(role string) bool {
 	slot, present := view.first[role]
 	return present && slot == view.Slot
+}
+
+func (view *View) Addresses(role string) []string {
+	var hosts []string
+	for _, slot := range view.holders[role] {
+		address := view.addresses[slot]
+		if host, _, err := net.SplitHostPort(address); err == nil {
+			address = host
+		}
+		hosts = append(hosts, address)
+	}
+	return hosts
 }
 
 func (view *View) Vips(group string) []string {
@@ -201,9 +215,10 @@ func BuildView(chain *Chain, slot int, topology *Topology, minMembers int, iface
 	view := &View{
 		Slot: slot, Rank: chain.RankOf(slot), Members: len(active), MinMembers: minMembers, Roles: me.Roles,
 		Topology: chain.TopologyVersion(), Interface: iface, topology: topology,
-		holders: map[string][]int{}, first: firstSlots(chain),
+		holders: map[string][]int{}, first: firstSlots(chain), addresses: map[int]string{},
 	}
 	for _, member := range active {
+		view.addresses[member.Slot] = member.Addr()
 		for _, role := range member.Roles {
 			view.holders[role] = append(view.holders[role], member.Slot)
 		}

@@ -97,6 +97,7 @@ Template values:
 | `.Holds "role"` | whether this node holds the role |
 | `.RankIn "role"`, `.Count "role"` | this node's position among the holders of the role, and how many hold it |
 | `.IsFirst "role"` | whether this node is the first member ever admitted to the role |
+| `.Addresses "role"` | the host addresses of the holders of the role, in rank order |
 | `.Vips "group"`, `.VipGroups` | the addresses of a floating address group, and the sorted group names |
 | `priority rank count index` | the priority `100 - ((rank - index) mod count) * step`, where `step = max(1, min(10, 90 / count))`, which spreads floating addresses evenly over any set of nodes |
 | `add`, `mul`, `upper`, `join`, `dict` | helpers; `and`, `or`, `index`, `ge` and the other built-ins work too |
@@ -105,7 +106,7 @@ Template values:
 
 ## Read API
 
-A member serves a read-only, Kubernetes-style HTTP API on `api_port` (genesis, default 17948), from its copy of the log, so `kubectl` can list the members and the roles without a cluster. It is enabled when the file named by `api_client_ca` (default `/etc/fistpumpd/api-client-ca.pem`) exists. Clients authenticate with a certificate that the CA signed, over TLS 1.3 with the member's own certificate.
+A member serves a read-only, Kubernetes-style HTTP API on `api_port` (genesis, default 17948), from its copy of the log, so `kubectl` can list the members and the roles without a cluster. It is enabled when at least one of the files named by `api_client_ca` (a path or a list of paths, default `/etc/fistpumpd/api-client-ca.pem`) exists. The files are read at every connection, so a CA that appears later, such as the request-header CA that the Kubernetes aggregation layer signs its client certificates with, is trusted from then on. Clients authenticate with a certificate that one of the CAs signed, over TLS 1.3 with the member's own certificate.
 
 The group is `cluster.fistpumpd.example/v1alpha1`:
 

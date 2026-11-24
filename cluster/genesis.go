@@ -18,7 +18,7 @@ type Genesis struct {
 	Port          int
 	DiscoveryPort int
 	APIPort       int
-	APIClientCA   string
+	APIClientCAs  []string
 	PolicyURLs    []string
 	Seeds         []string
 	FounderWait   float64
@@ -37,7 +37,7 @@ func numberField(document Obj, key string, fallback float64) float64 {
 }
 
 func ParseGenesis(document Obj) (*Genesis, error) {
-	genesis := &Genesis{MinMembers: 2, Port: DefaultPort, DiscoveryPort: DefaultDiscoveryPort, APIPort: DefaultAPIPort, APIClientCA: DefaultAPIClientCA, FounderWait: 20, EvictAfter: 300, AttestEvery: 30, JoinRetry: 10}
+	genesis := &Genesis{MinMembers: 2, Port: DefaultPort, DiscoveryPort: DefaultDiscoveryPort, APIPort: DefaultAPIPort, APIClientCAs: []string{DefaultAPIClientCA}, FounderWait: 20, EvictAfter: 300, AttestEvery: 30, JoinRetry: 10}
 	if value, present := document["min_members"]; present {
 		minimum, ok := asInt(value)
 		if !ok || minimum < 2 {
@@ -67,8 +67,10 @@ func ParseGenesis(document Obj) (*Genesis, error) {
 	if port, ok := asInt(document["api_port"]); ok {
 		genesis.APIPort = port
 	}
-	if path := str(document, "api_client_ca"); path != "" {
-		genesis.APIClientCA = path
+	if single := str(document, "api_client_ca"); single != "" {
+		genesis.APIClientCAs = []string{single}
+	} else if list := stringList(document["api_client_ca"]); len(list) > 0 {
+		genesis.APIClientCAs = list
 	}
 	genesis.Seeds = stringList(document["seeds"])
 	genesis.FounderWait = numberField(document, "founder_wait", genesis.FounderWait)

@@ -98,8 +98,12 @@ func runDaemon(arguments []string) error {
 	flags := flag.NewFlagSet("daemon", flag.ExitOnError)
 	state := flags.String("state", stateDirectory, "state directory")
 	genesisFile := flags.String("genesis", genesisPath, "genesis file")
-	topology := flags.String("topology", firstExisting(topologyPaths), "topology file")
+	topology := flags.String("topology", "", "topology file")
 	_ = flags.Parse(arguments)
+	var candidates []string
+	if *topology == "" {
+		candidates, *topology = topologyPaths, firstExisting(topologyPaths)
+	}
 	genesis, err := cluster.LoadGenesis(*genesisFile)
 	if err != nil {
 		return err
@@ -112,7 +116,7 @@ func runDaemon(arguments []string) error {
 	keyring := firstExisting(keyrings)
 	cache := filepath.Join(*state, "policy.json")
 	daemon, err := cluster.NewDaemon(cluster.DaemonConfig{
-		Paths:   cluster.Paths{State: *state, Run: runDirectory, Topology: *topology, Credstore: cluster.DefaultCredstore},
+		Paths:   cluster.Paths{State: *state, Run: runDirectory, Topology: *topology, Topologies: candidates, Credstore: cluster.DefaultCredstore},
 		Genesis: genesis, TPM: &cluster.TPMProver{}, Verifier: cluster.TPMVerifier{}, Address: fmt.Sprintf("%s:%d", source, genesis.Port),
 		BuildCertificate: certificate, Interface: iface, Seal: true,
 		Targets: []cluster.Target{{Host: "255.255.255.255", Port: genesis.DiscoveryPort}},
