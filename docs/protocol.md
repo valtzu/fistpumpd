@@ -1,19 +1,8 @@
 # Protocol
 
-fistpumpd keeps a small cluster of machines in agreement about who is in it and what each member does. Membership is a hash-chained log that members extend by quorum. A machine is admitted only after the members have checked its TPM, and every member derives its own configuration from the log.
+This document describes how fistpumpd members agree on the membership of a cluster: the log, the consensus rule, admission and attestation, role selection, and the network and failure behavior. For what the daemon is for and how to run it, see the [README](../README.md).
 
-There is no coordinator. The only trusted party is the build key that signs the OS image and the topology.
-
-## Properties
-
-- Admissions are serialized: the log has one order, and a member signs at most one entry per index.
-- History is readable by anyone and cannot be rewritten. Any node, or a tool outside the cluster, can verify the whole log from the entries alone.
-- Admission needs proof from the machine's TPM that it runs an accepted software stack. Members attest each other for as long as they are in the cluster.
-- The cluster fixes no number of nodes. Roles are assigned by rules over what each node reports about itself.
-- No node names are used anywhere. A node's rank comes from the log.
-- A lone node never starts the cluster: the first member waits until a second one has been admitted.
-
-Not covered: public participation, tokens or mining, a malicious build key, or a hostile majority of members.
+Membership is a hash-chained log that members extend by quorum. A machine is admitted only after the members have checked its TPM, and every member derives its own configuration from the log. The only trusted party is the build key that signs the OS image and the topology.
 
 ## Consensus
 

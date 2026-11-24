@@ -1,0 +1,61 @@
+name: release
+
+# Publishes the release an `X.Y.Z` tag names (no `v` prefix): static binaries
+# for linux/amd64 and linux/arm64, with a SHA256SUMS file. The version in
+# `fistpumpd version` is the tag.
+#
+# `workflow_dispatch` is the re-run path: dispatch it on the tag's ref, not on a
+# branch. It replaces the assets of a release that already exists.
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: The ref is a version tag
+        run: |
+          [ "${GITHUB_REF_TYPE}" = tag ] || { echo "run this on a tag, not on ${GITHUB_REF}" >&2; exit 1; }
+          printf '%s\n' "${GITHUB_REF_NAME}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "${GITHUB_REF_NAME} is not X.Y.Z" >&2; exit 1; }
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: |
+          go vet ./...
+          go test -race ./...
+
+      - name: Build
+        run: |
+          mkdir out
+          for arch in amd64 arm64; do
+            CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -trimpath \
+              -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o "out/fistpumpd-$arch" ./cmd/fistpumpd
+          done
+          (cd out && sha256sum fistpumpd-amd64 fistpumpd-arm64 > SHA256SUMS && cat SHA256SUMS)
+          [ "$(out/fistpumpd-amd64 version)" = "${GITHUB_REF_NAME}" ]
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" out/fistpumpd-amd64 out/fistpumpd-arm64 out/SHA256SUMS --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" out/fistpumpd-amd64 out/fistpumpd-arm64 out/SHA256SUMS \
+              --verify-tag --title "${GITHUB_REF_NAME}" --generate-notes
+          fi
