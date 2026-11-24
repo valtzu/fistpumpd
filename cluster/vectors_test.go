@@ -207,3 +207,42 @@ func TestResetVectors(t *testing.T) {
 		t.Errorf("active after reset: %d", len(chain.Active()))
 	}
 }
+
+func TestApplyVectors(t *testing.T) {
+	data := vectors(t)["apply"].(Obj)
+	chain := NewChain(nil)
+	for _, entry := range vectors(t)["chain"].(Obj)["entries"].([]any) {
+		if err := chain.Append(entry.(Obj)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	topology, err := ParseTopology(vectors(t)["topology"].(Obj)["document"].(Obj))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range data["cases"].([]any) {
+		c := item.(Obj)
+		slot := c["slot"].(int)
+		plan := BuildPlan(chain, slot, topology, data["genesis"].(Obj)["min_members"].(int), "eth0")
+		want := c["plan"].(Obj)
+		if plan.Rank != want["rank"].(int) || plan.Members != want["members"].(int) || plan.StartK3s != want["start_k3s"].(bool) ||
+			plan.CreatesTokens != want["creates_tokens"].(bool) || !equalStrings(plan.NeedsTokens, stringList(want["needs_tokens"])) {
+			t.Errorf("slot %d plan %+v want %v", slot, plan, want)
+		}
+		if got := RenderKeepalived(plan); got != c["keepalived"] {
+			t.Errorf("slot %d keepalived:\n%s\nwant\n%s", slot, got, c["keepalived"])
+		}
+		if got := RenderK3s(plan.K3s); got != c["k3s"] {
+			t.Errorf("slot %d k3s %q want %q", slot, got, c["k3s"])
+		}
+	}
+	for _, item := range data["priorities"].([]any) {
+		row := item.([]any)
+		if got := Priority(row[0].(int), row[1].(int), row[2].(int)); got != row[3].(int) {
+			t.Errorf("priority%v = %d", row[:3], got)
+		}
+	}
+	if got := string(Marshal(Obj{"x": "y"})); got == "" || vectors(t)["token_request"].([]any)[0] != "rpi-cluster token server "+"abababababababababababababababababababab"+" 3" {
+		t.Errorf("token request vector %v", vectors(t)["token_request"])
+	}
+}

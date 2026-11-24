@@ -1,0 +1,257 @@
+package cluster
+
+import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	ekHandle    = "0x81010001"
+	akHandle    = "0x81010002"
+	bank        = "sha256"
+	digestBytes = 32
+)
+
+var pcrSelection = []int{0, 1, 2, 3, 7, 11}
+
+func pcrList() string {
+	parts := make([]string, len(pcrSelection))
+	for index, number := range pcrSelection {
+		parts[index] = strconv.Itoa(number)
+	}
+	return bank + ":" + strings.Join(parts, ",")
+}
+
+func runTool(environment []string, name string, arguments ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, name, arguments...)
+	if environment != nil {
+		command.Env = append(os.Environ(), environment...)
+	}
+	var stdout, stderr bytes.Buffer
+	command.Stdout, command.Stderr = &stdout, &stderr
+	if err := command.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if len(message) > 300 {
+			message = message[len(message)-300:]
+		}
+		return nil, attestationError("%s: %s", name, message)
+	}
+	return stdout.Bytes(), nil
+}
+
+type TPMProver struct{ Environment []string }
+
+func (prover *TPMProver) tool(name string, arguments ...string) ([]byte, error) {
+	return runTool(prover.Environment, name, arguments...)
+}
+
+func (prover *TPMProver) flush() {
+	for _, option := range []string{"-t", "-l", "-s"} {
+		_, _ = prover.tool("tpm2_flushcontext", option)
+	}
+}
+
+func (prover *TPMProver) persistent(work, handle string, create func() error) error {
+	if _, err := prover.tool("tpm2_readpublic", "-c", handle, "-o", filepath.Join(work, "probe.pub")); err == nil {
+		return nil
+	}
+	return create()
+}
+
+func (prover *TPMProver) prepare(work string) error {
+	prover.flush()
+	createEK := func() error {
+		context := filepath.Join(work, "ek.ctx")
+		if _, err := prover.tool("tpm2_createek", "-c", context, "-G", "ecc"); err != nil {
+			return err
+		}
+		if _, err := prover.tool("tpm2_evictcontrol", "-C", "o", "-c", context, ekHandle); err != nil {
+			return err
+		}
+		prover.flush()
+		return nil
+	}
+	createAK := func() error {
+		context := filepath.Join(work, "ak.ctx")
+		if _, err := prover.tool("tpm2_createak", "-C", ekHandle, "-c", context, "-G", "ecc", "-g", bank, "-s", "ecdsa"); err != nil {
+			return err
+		}
+		if _, err := prover.tool("tpm2_evictcontrol", "-C", "o", "-c", context, akHandle); err != nil {
+			return err
+		}
+		prover.flush()
+		return nil
+	}
+	if err := prover.persistent(work, ekHandle, createEK); err != nil {
+		return err
+	}
+	return prover.persistent(work, akHandle, createAK)
+}
+
+func workDir() (string, func()) {
+	directory, err := os.MkdirTemp("", "rpi-cluster-tpm-")
+	if err != nil {
+		panic(err)
+	}
+	return directory, func() { _ = os.RemoveAll(directory) }
+}
+
+func (prover *TPMProver) Hello() (Obj, error) {
+	work, cleanup := workDir()
+	defer cleanup()
+	if err := prover.prepare(work); err != nil {
+		return nil, err
+	}
+	if _, err := prover.tool("tpm2_readpublic", "-c", ekHandle, "-o", filepath.Join(work, "ek.pub")); err != nil {
+		return nil, err
+	}
+	if _, err := prover.tool("tpm2_readpublic", "-c", akHandle, "-o", filepath.Join(work, "ak.pub"), "-n", filepath.Join(work, "ak.name")); err != nil {
+		return nil, err
+	}
+	ek, _ := os.ReadFile(filepath.Join(work, "ek.pub"))
+	ak, _ := os.ReadFile(filepath.Join(work, "ak.pub"))
+	name, _ := os.ReadFile(filepath.Join(work, "ak.name"))
+	return Obj{
+		"ek_pub":  base64.StdEncoding.EncodeToString(ek),
+		"ak_pub":  base64.StdEncoding.EncodeToString(ak),
+		"ak_name": hex.EncodeToString(name),
+	}, nil
+}
+
+func (prover *TPMProver) Answer(challenge string) (string, error) {
+	work, cleanup := workDir()
+	defer cleanup()
+	if err := prover.prepare(work); err != nil {
+		return "", err
+	}
+	raw, err := base64.StdEncoding.DecodeString(challenge)
+	if err != nil {
+		return "", attestationError("bad challenge")
+	}
+	if err := os.WriteFile(filepath.Join(work, "cred.blob"), raw, 0o600); err != nil {
+		return "", err
+	}
+	session := filepath.Join(work, "session.ctx")
+	if _, err := prover.tool("tpm2_startauthsession", "--policy-session", "-S", session); err != nil {
+		return "", err
+	}
+	defer func() { _, _ = prover.tool("tpm2_flushcontext", session) }()
+	if _, err := prover.tool("tpm2_policysecret", "-S", session, "-c", "e"); err != nil {
+		return "", err
+	}
+	if _, err := prover.tool("tpm2_activatecredential", "-c", akHandle, "-C", ekHandle, "-i", filepath.Join(work, "cred.blob"),
+		"-o", filepath.Join(work, "secret.out"), "-P", "session:"+session); err != nil {
+		return "", err
+	}
+	secret, err := os.ReadFile(filepath.Join(work, "secret.out"))
+	return hex.EncodeToString(secret), err
+}
+
+func (prover *TPMProver) Quote(qualifying string) (Obj, error) {
+	work, cleanup := workDir()
+	defer cleanup()
+	if err := prover.prepare(work); err != nil {
+		return nil, err
+	}
+	before, after := filepath.Join(work, "before.pcrs"), filepath.Join(work, "quote.pcrs")
+	stable := false
+	for attempt := 0; attempt < 3 && !stable; attempt++ {
+		if _, err := prover.tool("tpm2_pcrread", pcrList(), "-o", before); err != nil {
+			return nil, err
+		}
+		if _, err := prover.tool("tpm2_quote", "-c", akHandle, "-l", pcrList(), "-q", qualifying, "-m", filepath.Join(work, "quote.msg"),
+			"-s", filepath.Join(work, "quote.sig"), "-g", bank); err != nil {
+			return nil, err
+		}
+		if _, err := prover.tool("tpm2_pcrread", pcrList(), "-o", after); err != nil {
+			return nil, err
+		}
+		first, _ := os.ReadFile(before)
+		second, _ := os.ReadFile(after)
+		stable = bytes.Equal(first, second)
+	}
+	if !stable {
+		return nil, attestationError("the PCRs keep changing")
+	}
+	raw, _ := os.ReadFile(after)
+	if len(raw) != digestBytes*len(pcrSelection) {
+		return nil, attestationError("unexpected PCR data length")
+	}
+	pcrs := Obj{}
+	for index, number := range pcrSelection {
+		pcrs[strconv.Itoa(number)] = hex.EncodeToString(raw[index*digestBytes : (index+1)*digestBytes])
+	}
+	message, _ := os.ReadFile(filepath.Join(work, "quote.msg"))
+	signature, _ := os.ReadFile(filepath.Join(work, "quote.sig"))
+	return Obj{
+		"pcrs":      pcrs,
+		"message":   base64.StdEncoding.EncodeToString(message),
+		"signature": base64.StdEncoding.EncodeToString(signature),
+	}, nil
+}
+
+type TPMVerifier struct{}
+
+func (TPMVerifier) Challenge(hello Obj) (string, string, error) {
+	secret := make([]byte, digestBytes)
+	if _, err := rand.Read(secret); err != nil {
+		return "", "", err
+	}
+	work, cleanup := workDir()
+	defer cleanup()
+	ek, err := base64.StdEncoding.DecodeString(str(hello, "ek_pub"))
+	if err != nil {
+		return "", "", attestationError("bad endorsement key")
+	}
+	_ = os.WriteFile(filepath.Join(work, "ek.pub"), ek, 0o600)
+	_ = os.WriteFile(filepath.Join(work, "secret"), secret, 0o600)
+	if _, err := runTool(nil, "tpm2_makecredential", "-T", "none", "-e", filepath.Join(work, "ek.pub"), "-s", filepath.Join(work, "secret"),
+		"-n", str(hello, "ak_name"), "-o", filepath.Join(work, "cred.blob")); err != nil {
+		return "", "", err
+	}
+	blob, _ := os.ReadFile(filepath.Join(work, "cred.blob"))
+	return base64.StdEncoding.EncodeToString(blob), hex.EncodeToString(secret), nil
+}
+
+func (TPMVerifier) CheckQuote(hello, quote Obj, qualifying string) (map[string]string, error) {
+	given, _ := quote["pcrs"].(Obj)
+	var raw []byte
+	values := map[string]string{}
+	for _, number := range pcrSelection {
+		key := strconv.Itoa(number)
+		value, _ := given[key].(string)
+		decoded, err := hex.DecodeString(value)
+		if err != nil || len(decoded) != digestBytes {
+			return nil, attestationError("the quote lacks some of the PCRs")
+		}
+		raw = append(raw, decoded...)
+		values[key] = strings.ToLower(value)
+	}
+	work, cleanup := workDir()
+	defer cleanup()
+	decode := func(key string) []byte {
+		data, _ := base64.StdEncoding.DecodeString(str(quote, key))
+		return data
+	}
+	ak, _ := base64.StdEncoding.DecodeString(str(hello, "ak_pub"))
+	files := map[string][]byte{"ak.pub": ak, "quote.msg": decode("message"), "quote.sig": decode("signature"), "quote.pcrs": raw}
+	for name, data := range files {
+		_ = os.WriteFile(filepath.Join(work, name), data, 0o600)
+	}
+	if _, err := runTool(nil, "tpm2_checkquote", "-u", filepath.Join(work, "ak.pub"), "-m", filepath.Join(work, "quote.msg"),
+		"-s", filepath.Join(work, "quote.sig"), "-f", filepath.Join(work, "quote.pcrs"), "-l", pcrList(), "-g", bank, "-q", qualifying); err != nil {
+		return nil, err
+	}
+	return values, nil
+}
