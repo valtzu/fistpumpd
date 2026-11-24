@@ -1,6 +1,6 @@
 # Design for 0.2.0: configuration without built-in k3s and keepalived
 
-Status: proposal. Nothing here is implemented in 0.1.x.
+Status: the selector form, the files with templates, `machine-role.d` and the role status are in 0.2.0. Generic secrets, readiness gates, the floating address sources and the read API are proposals.
 
 ## Goal
 
