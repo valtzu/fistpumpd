@@ -8,6 +8,17 @@ The daemon decides who is a member and which roles they hold. What a role writes
 
 Kept as they are: machine tags, role markers, and the systemd ordering. The role marker directory is renamed to `/etc/machine-role.d/`, so that it is not mistaken for a Kubernetes node.
 
+## Selectors
+
+A role selects nodes with the Kubernetes label selector form over the facts the node reports (`arch`, `memory-gib`, `disk-gib`, `cpu-count`, `board`, `tpm`):
+
+```json
+"selector": {"matchLabels": {"arch": "arm64"},
+             "matchExpressions": [{"key": "memory-gib", "operator": "Gt", "values": ["3"]}]}
+```
+
+Operators are `In`, `NotIn`, `Exists`, `DoesNotExist`, `Gt` and `Lt`. The compact selector of 0.1.x stays valid.
+
 ## Files in the topology
 
 A role lists files to write:
