@@ -2,7 +2,9 @@ name: release
 
 # Publishes the release an `X.Y.Z` tag names (no `v` prefix): static binaries
 # for linux/amd64 and linux/arm64, with a SHA256SUMS file. The version in
-# `fistpumpd version` is the tag.
+# `fistpumpd version` is the tag. The release body is the annotated tag's own
+# message, the notes written by `.claude/skills/release/SKILL.md`, followed by
+# what each published file is.
 #
 # `workflow_dispatch` is the re-run path: dispatch it on the tag's ref, not on a
 # branch. It replaces the assets of a release that already exists.
@@ -24,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: The ref is a version tag
         run: |
@@ -49,13 +53,33 @@ jobs:
           (cd out && sha256sum fistpumpd-amd64 fistpumpd-arm64 > SHA256SUMS && cat SHA256SUMS)
           [ "$(out/fistpumpd-amd64 version)" = "${GITHUB_REF_NAME}" ]
 
+      - name: Notes
+        run: |
+          if [ "$(git cat-file -t "refs/tags/${GITHUB_REF_NAME}")" = tag ]; then
+            git tag -l --format='%(contents)' "${GITHUB_REF_NAME}" > notes.md
+          else
+            echo "::warning::${GITHUB_REF_NAME} is a lightweight tag, so it carries no notes"
+            : > notes.md
+          fi
+          cat >> notes.md <<EOF
+
+          ### Files
+
+          - \`fistpumpd-amd64\` and \`fistpumpd-arm64\`: the daemon and its command line, static \`linux/amd64\` and \`linux/arm64\` executables with no dependencies.
+          - \`SHA256SUMS\`: their SHA-256 sums. Check a download with \`sha256sum --check --ignore-missing SHA256SUMS\`.
+
+          \`fistpumpd version\` prints \`${GITHUB_REF_NAME}\`.
+          EOF
+          cat notes.md
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             gh release upload "${GITHUB_REF_NAME}" out/fistpumpd-amd64 out/fistpumpd-arm64 out/SHA256SUMS --clobber
+            gh release edit "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file notes.md
           else
             gh release create "${GITHUB_REF_NAME}" out/fistpumpd-amd64 out/fistpumpd-arm64 out/SHA256SUMS \
-              --verify-tag --title "${GITHUB_REF_NAME}" --generate-notes
+              --verify-tag --title "${GITHUB_REF_NAME}" --notes-file notes.md
           fi
