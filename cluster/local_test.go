@@ -123,13 +123,19 @@ func (r *recording) Run(name string, arguments ...string) {
 }
 
 func vectorChain(t *testing.T) (*Chain, *Topology) {
+	t.Helper()
 	chain := NewChain(nil)
 	for _, entry := range vectors(t)["chain"].(Obj)["entries"].([]any) {
 		if err := chain.Append(entry.(Obj)); err != nil {
 			t.Fatal(err)
 		}
 	}
-	topology, err := ParseTopology(vectors(t)["topology"].(Obj)["document"].(Obj))
+	document := Obj{}
+	for key, value := range vectors(t)["topology"].(Obj)["document"].(Obj) {
+		document[key] = value
+	}
+	document["files"] = vectors(t)["apply"].(Obj)["files"]
+	topology, err := ParseTopology(document)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,8 +146,8 @@ func TestApplyWritesOnceAndSignalsOnlyOnChange(t *testing.T) {
 	chain, topology := vectorChain(t)
 	root, run := t.TempDir(), t.TempDir()
 	host := &recording{}
-	plan := BuildPlan(chain, 0, topology, 2, "eth0")
-	if _, err := Apply(plan, root, run, host); err != nil {
+	plan := BuildView(chain, 0, topology, 2, "eth0")
+	if _, err := Apply(plan, topology.Files, root, run, host); err != nil {
 		t.Fatal(err)
 	}
 	first := len(host.calls)
@@ -155,7 +161,7 @@ func TestApplyWritesOnceAndSignalsOnlyOnChange(t *testing.T) {
 			t.Errorf("missing call %v in %v", expected, host.calls)
 		}
 	}
-	if _, err := Apply(plan, root, run, host); err != nil || len(host.calls) != first {
+	if _, err := Apply(plan, topology.Files, root, run, host); err != nil || len(host.calls) != first {
 		t.Fatalf("a second apply must not signal anything: %v", host.calls[first:])
 	}
 	if _, err := os.Stat(filepath.Join(root, "etc/rancher/k3s/config.yaml.d/10-role.yaml")); err != nil {
@@ -166,14 +172,14 @@ func TestApplyWritesOnceAndSignalsOnlyOnChange(t *testing.T) {
 func TestApplyRemovesStaleRoleMarkers(t *testing.T) {
 	chain, topology := vectorChain(t)
 	root, run := t.TempDir(), t.TempDir()
-	plan := BuildPlan(chain, 0, topology, 2, "eth0")
-	_, _ = Apply(plan, root, run, &recording{})
+	plan := BuildView(chain, 0, topology, 2, "eth0")
+	_, _ = Apply(plan, topology.Files, root, run, &recording{})
 	plan.Roles = []string{"agent"}
-	_, _ = Apply(plan, root, run, &recording{})
-	if _, err := os.Stat(filepath.Join(root, "etc/node-role.d/server.conf")); err == nil {
+	_, _ = Apply(plan, topology.Files, root, run, &recording{})
+	if _, err := os.Stat(filepath.Join(root, "etc/machine-role.d/server.conf")); err == nil {
 		t.Fatal("the server marker must go")
 	}
-	if _, err := os.Stat(filepath.Join(root, "etc/node-role.d/agent.conf")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, "etc/machine-role.d/agent.conf")); err != nil {
 		t.Fatal("the agent marker must exist")
 	}
 }

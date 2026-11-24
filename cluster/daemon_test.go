@@ -45,6 +45,15 @@ var rigTopology = Obj{
 	"vips": Obj{"server": []any{"10.9.0.20", "10.9.0.21", "10.9.0.22"}, "ingress": []any{"10.9.0.30"}},
 }
 
+func withFiles(t testing.TB, document Obj) Obj {
+	copied := Obj{}
+	for key, value := range document {
+		copied[key] = value
+	}
+	copied["files"] = vectors(t)["apply"].(Obj)["files"]
+	return copied
+}
+
 type rig struct {
 	t        *testing.T
 	dir      string
@@ -80,7 +89,7 @@ func (r *rig) start(index int, pcrs map[string]string) *Daemon {
 			r.t.Fatal(err)
 		}
 	}
-	data, _ := json.Marshal(rigTopology)
+	data, _ := json.Marshal(withFiles(r.t, rigTopology))
 	_ = os.WriteFile(filepath.Join(root, "topology.json"), data, 0o644)
 	genesis, err := ParseGenesis(Obj{"min_members": 2, "founder_wait": 1, "attest_interval": 1, "evict_after": 2, "join_retry": 1,
 		"port": r.tcp[index], "discovery_port": r.udp[index]})
@@ -299,7 +308,7 @@ func TestANewTopologyIsAdoptedThroughTheLog(t *testing.T) {
 		t.Fatal("no cluster")
 	}
 	newer := Obj{}
-	for key, value := range rigTopology {
+	for key, value := range withFiles(t, rigTopology) {
 		newer[key] = value
 	}
 	newer["version"] = 2

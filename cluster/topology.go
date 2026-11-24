@@ -21,6 +21,7 @@ type Topology struct {
 	Roles     []Role
 	Vips      map[string][]string
 	Unmatched string
+	Files     []FileSpec
 	Digest    string
 	Document  Obj
 }
@@ -62,6 +63,13 @@ func ParseTopology(document Obj) (*Topology, error) {
 			}
 			topology.Vips[group] = stringList(addresses)
 		}
+	}
+	if files, present := document["files"]; present {
+		parsed, err := parseFiles(files)
+		if err != nil {
+			return nil, err
+		}
+		topology.Files = parsed
 	}
 	if unmatched, present := document["unmatched"]; present {
 		text, _ := unmatched.(string)

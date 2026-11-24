@@ -4,10 +4,11 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
-func vectors(t *testing.T) Obj {
+func vectors(t testing.TB) Obj {
 	t.Helper()
 	data, err := os.ReadFile("../testdata/vectors.json")
 	if err != nil {
@@ -204,24 +205,44 @@ func TestApplyVectors(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	topology, err := ParseTopology(vectors(t)["topology"].(Obj)["document"].(Obj))
+	document := Obj{}
+	for key, value := range vectors(t)["topology"].(Obj)["document"].(Obj) {
+		document[key] = value
+	}
+	document["files"] = data["files"]
+	withFiles, err := ParseTopology(document)
 	if err != nil {
 		t.Fatal(err)
+	}
+	rendered := func(view *View, path string) string {
+		for _, spec := range withFiles.Files {
+			if spec.Path == path && spec.applies(view) {
+				text, err := view.render(spec)
+				if err != nil {
+					t.Fatal(err)
+				}
+				return text
+			}
+		}
+		return ""
 	}
 	for _, item := range data["cases"].([]any) {
 		c := item.(Obj)
 		slot := c["slot"].(int)
-		plan := BuildPlan(chain, slot, topology, data["genesis"].(Obj)["min_members"].(int), "eth0")
+		view := BuildView(chain, slot, withFiles, data["genesis"].(Obj)["min_members"].(int), "eth0")
 		want := c["plan"].(Obj)
-		if plan.Rank != want["rank"].(int) || plan.Members != want["members"].(int) || plan.StartK3s != want["start_k3s"].(bool) ||
-			plan.CreatesTokens != want["creates_tokens"].(bool) || !equalStrings(plan.NeedsTokens, stringList(want["needs_tokens"])) {
-			t.Errorf("slot %d plan %+v want %v", slot, plan, want)
+		if view.Rank != want["rank"].(int) || view.Members != want["members"].(int) ||
+			view.CreatesTokens != want["creates_tokens"].(bool) || !equalStrings(view.NeedsTokens, stringList(want["needs_tokens"])) {
+			t.Errorf("slot %d view %+v want %v", slot, view, want)
 		}
-		if got := RenderKeepalived(plan); got != c["keepalived"] {
+		if got := rendered(view, "/run/fistpumpd/keepalived.conf"); got != c["keepalived"] {
 			t.Errorf("slot %d keepalived:\n%s\nwant\n%s", slot, got, c["keepalived"])
 		}
-		if got := RenderK3s(plan.K3s); got != c["k3s"] {
+		if got := rendered(view, "/etc/rancher/k3s/config.yaml.d/10-role.yaml"); got != c["k3s"] {
 			t.Errorf("slot %d k3s %q want %q", slot, got, c["k3s"])
+		}
+		if got := strings.TrimSpace(rendered(view, "/run/fistpumpd/k3s-ready")) == "ready"; got != want["start_k3s"].(bool) {
+			t.Errorf("slot %d start_k3s %v want %v", slot, got, want["start_k3s"])
 		}
 	}
 	for _, item := range data["priorities"].([]any) {

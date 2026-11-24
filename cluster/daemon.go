@@ -61,7 +61,7 @@ type Daemon struct {
 	topology   *Topology
 	failing    map[int]time.Time
 	status     Obj
-	settings   *Plan
+	settings   *View
 	servers    []interface{ Stop() }
 	serving    bool
 	apply      sync.Mutex
@@ -379,7 +379,7 @@ func (d *Daemon) attestMember(member *Member) bool {
 func (d *Daemon) changed(node *Node) {
 	d.apply.Lock()
 	defer d.apply.Unlock()
-	var plan *Plan
+	var plan *View
 	evicted := false
 	topology := node.Topology()
 	node.WithLog(func(chain *Chain) {
@@ -388,7 +388,7 @@ func (d *Daemon) changed(node *Node) {
 			evicted = true
 			return
 		}
-		plan = BuildPlan(chain, slot, topology, d.cfg.Genesis.MinMembers, d.cfg.Interface)
+		plan = BuildView(chain, slot, topology, d.cfg.Genesis.MinMembers, d.cfg.Interface)
 	})
 	if evicted {
 		d.setStatus(Obj{"phase": "evicted"})
@@ -416,7 +416,7 @@ func (d *Daemon) changed(node *Node) {
 	if err := d.tokens.InstallCredentials(wanted); err != nil {
 		log.Printf("could not install credentials: %v", err)
 	}
-	if _, err := Apply(plan, d.root(), d.cfg.Paths.Run, d.cfg.Host); err != nil {
+	if _, err := Apply(plan, topology.Files, d.root(), d.cfg.Paths.Run, d.cfg.Host); err != nil {
 		log.Printf("apply: %v", err)
 	}
 }
@@ -637,7 +637,7 @@ func (d *Daemon) Stop() {
 	d.servers = nil
 }
 
-func (d *Daemon) Settings() *Plan {
+func (d *Daemon) Settings() *View {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 	return d.settings

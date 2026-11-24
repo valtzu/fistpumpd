@@ -40,6 +40,7 @@ func testTopology(t testing.TB) *Topology {
 			Obj{"name": "server", "selector": Obj{"memory-gib": ">=4"}, "min": 3, "max": 3, "conflicts": []any{"agent"}},
 			Obj{"name": "agent", "selector": Obj{}, "conflicts": []any{"server"}},
 		},
+		"files": vectors(t)["apply"].(Obj)["files"],
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -176,6 +176,35 @@
     "slot": 2
    }
   ],
+  "files": [
+   {
+    "path": "/run/fistpumpd/keepalived.conf",
+    "reload": "keepalived.service",
+    "roles": [
+     "server",
+     "ingress"
+    ],
+    "stop": "keepalived.service",
+    "template": "{{- $checks := dict \"server\" \"script \\\"/usr/bin/curl --silent --insecure --max-time 2 --output /dev/null https://127.0.0.1:6443/livez\\\"\" \"ingress\" \"script \\\"/usr/bin/curl --silent --max-time 2 --output /dev/null http://127.0.0.1:80/\\\"\" -}}\n{{- $any := false -}}\n{{- range $role := .VipGroups}}{{if and ($.Holds $role) (index $checks $role)}}{{$any = true}}{{end}}{{end -}}\n{{- if $any -}}\nglobal_defs {\n    enable_script_security\n    script_user nobody\n}\n{{range $role := .VipGroups}}{{if and ($.Holds $role) (index $checks $role)}}\nvrrp_script chk_{{$role}} {\n    {{index $checks $role}}\n    interval 2\n    fall 2\n    rise 2\n}\n{{end}}{{end -}}\n{{- range $group, $role := .VipGroups}}{{if and ($.Holds $role) (index $checks $role)}}\n{{- $rank := $.RankIn $role}}{{$count := $.Count $role -}}\n{{- range $index, $address := $.Vips $role}}\nvrrp_instance {{upper $role}}{{add $index 1}} {\n    interface {{$.Interface}}\n    state BACKUP\n    virtual_router_id {{add (add 60 (mul 10 $group)) $index}}\n    advert_int 1\n    preempt_delay 60\n    priority {{priority $rank $count $index}}\n    virtual_ipaddress {\n        {{$address}}/24\n    }\n    track_script {\n        chk_{{$role}}\n    }\n}\n{{end}}{{end}}{{end -}}\n{{- end -}}\n"
+   },
+   {
+    "path": "/etc/rancher/k3s/config.yaml.d/10-role.yaml",
+    "roles": [
+     "server",
+     "agent"
+    ],
+    "template": "{{- $servers := .Vips \"server\" -}}\n{{- if .Holds \"server\" -}}\n{{- if $servers}}tls-san+:\n{{range $servers}}  - {{.}}\n{{end}}{{end -}}\n{{- if .IsFirst \"server\"}}cluster-init: true\n{{else if $servers}}server: https://{{index $servers 0}}:6443\n{{end -}}\n{{- else if and (.Holds \"agent\") $servers -}}\nserver: https://{{index $servers 0}}:6443\n{{end -}}\n"
+   },
+   {
+    "path": "/run/fistpumpd/k3s-ready",
+    "roles": [
+     "server",
+     "agent"
+    ],
+    "start": "k3s.service",
+    "template": "{{if and (ge .Members .MinMembers) (or (.Holds \"server\") (.Holds \"agent\")) (or (.IsFirst \"server\") (.Vips \"server\"))}}ready\n{{end}}\n"
+   }
+  ],
   "genesis": {
    "min_members": 2
   },
