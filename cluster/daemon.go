@@ -256,7 +256,52 @@ func (d *Daemon) serve(target Handler) error {
 		return err
 	}
 	d.servers = append(d.servers, responder)
+	return d.startAPI(host)
+}
+
+func (d *Daemon) startAPI(host string) error {
+	if d.cfg.Genesis.APIPort <= 0 {
+		return nil
+	}
+	clientCA, err := os.ReadFile(d.cfg.Genesis.APIClientCA)
+	if err != nil {
+		return nil
+	}
+	bind := fmt.Sprintf(":%d", d.cfg.Genesis.APIPort)
+	if host == "127.0.0.1" || host == "::1" {
+		bind = net.JoinHostPort(host, strconv.Itoa(d.cfg.Genesis.APIPort))
+	}
+	server, err := StartKubeAPI(NewKubeAPI(d.apiSnapshot), bind, d.tlsCert, d.tlsKey, clientCA)
+	if err != nil {
+		log.Printf("read API: %v", err)
+		return nil
+	}
+	d.servers = append(d.servers, server)
 	return nil
+}
+
+func (d *Daemon) apiSnapshot() APISnapshot {
+	node := d.Node()
+	if node == nil {
+		return APISnapshot{}
+	}
+	active, _, _, version := node.Snapshot()
+	d.mutex.Lock()
+	failing := map[int]time.Time{}
+	for slot, since := range d.failing {
+		failing[slot] = since
+	}
+	topology := d.topology
+	d.mutex.Unlock()
+	snapshot := APISnapshot{Topology: version, Roles: roleStatus(topology, active, failing)}
+	for _, member := range active {
+		_, bad := failing[member.Slot]
+		snapshot.Members = append(snapshot.Members, APIMember{
+			Slot: member.Slot, Addr: member.Addr(), Roles: member.Roles, Facts: member.Facts,
+			Image: str(member.Policy, "image"), Healthy: !bad,
+		})
+	}
+	return snapshot
 }
 
 func (d *Daemon) become(node *Node) error {
@@ -553,7 +598,15 @@ func (d *Daemon) Handle(method string, payload Obj) (Obj, error) {
 			}
 			reply["slot"], reply["members"], reply["head"], reply["length"] = node.Slot(), members, head, length
 			d.mutex.Lock()
-			reply["roles"] = roleStatus(d.topology, active, d.failing)
+			var listed []any
+			for _, role := range roleStatus(d.topology, active, d.failing) {
+				entry := Obj{"name": role.Name, "min": role.Min, "held": role.Held, "ready": role.Ready}
+				if role.Max != nil {
+					entry["max"] = *role.Max
+				}
+				listed = append(listed, entry)
+			}
+			reply["roles"] = listed
 			d.mutex.Unlock()
 		}
 		return reply, nil
@@ -657,22 +710,18 @@ func sortedKeys(values map[int]time.Time) []int {
 	return keys
 }
 
-func roleStatus(topology *Topology, active []*Member, failing map[int]time.Time) []any {
-	var roles []any
+func roleStatus(topology *Topology, active []*Member, failing map[int]time.Time) []APIRole {
+	var roles []APIRole
 	for _, role := range topology.Roles {
-		held, ready := 0, 0
+		entry := APIRole{Name: role.Name, Min: role.Min, Max: role.Max}
 		for _, member := range active {
 			if !contains(member.Roles, role.Name) {
 				continue
 			}
-			held++
+			entry.Held++
 			if _, bad := failing[member.Slot]; !bad {
-				ready++
+				entry.Ready++
 			}
-		}
-		entry := Obj{"name": role.Name, "min": role.Min, "held": held, "ready": ready}
-		if role.Max != nil {
-			entry["max"] = *role.Max
 		}
 		roles = append(roles, entry)
 	}

@@ -103,6 +103,23 @@ Template values:
 
 - **Tokens**: for k3s, the first server creates the server and agent tokens. The other members fetch them from a member over pinned TLS, with a challenge signed by their log key. Servers get both tokens, agents only the agent token. They are stored with `systemd-creds`, sealed to the TPM.
 
+## Read API
+
+A member serves a read-only, Kubernetes-style HTTP API on `api_port` (genesis, default 17948), from its copy of the log, so `kubectl` can list the members and the roles without a cluster. It is enabled when the file named by `api_client_ca` (default `/etc/fistpumpd/api-client-ca.pem`) exists. Clients authenticate with a certificate that the CA signed, over TLS 1.3 with the member's own certificate.
+
+The group is `cluster.fistpumpd.example/v1alpha1`:
+
+- `machines`: one per active member, named `slot-N`. The facts and the roles (`role.fistpumpd.example/<role>`) are labels. `status` has the phase (`Running`, or `Failed` while attestation fails), the address, the roles and the image.
+- `machinesets`: one per role of the topology, named after the role. `spec.replicas` is `min`, `spec.maxReplicas` is `max`, and `status` has the number of holders and the number of healthy holders.
+
+`get` and `list` work, and the Table format that `kubectl get` asks for is served. Any other verb is refused.
+
+```
+kubectl --server=https://<member>:17948 --insecure-skip-tls-verify \
+  --client-certificate=client.pem --client-key=client-key.pem \
+  get machines
+```
+
 ## Network
 
 Members speak JSON RPC over TLS 1.3 on port 17947 (`POST /rpc/<method>`). Each member has a self-signed certificate whose fingerprint is in its `admit` entry, and clients pin it. A candidate's first contact with a seed is unpinned. That is acceptable because the log is self-verifying and no secret crosses that connection. The log is public by design.
