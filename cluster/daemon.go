@@ -61,6 +61,7 @@ type Daemon struct {
 	policyErr  string
 	topology   *Topology
 	failing    map[int]time.Time
+	pcr1Noted  map[int]string
 	status     Obj
 	settings   *View
 	servers    []interface{ Stop() }
@@ -427,7 +428,24 @@ func (d *Daemon) attestMember(member *Member) bool {
 		log.Printf("slot %d failed attestation: %v", member.Slot, err)
 		return false
 	}
-	return member.PCR1 == "" || member.PCR1 == pcrs["1"]
+	d.notePCR1(member, pcrs["1"])
+	return true
+}
+
+func (d *Daemon) notePCR1(member *Member, current string) {
+	if member.PCR1 == "" || member.PCR1 == current {
+		return
+	}
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	if d.pcr1Noted == nil {
+		d.pcr1Noted = map[int]string{}
+	}
+	if d.pcr1Noted[member.Slot] == current {
+		return
+	}
+	d.pcr1Noted[member.Slot] = current
+	log.Printf("slot %d reports PCR 1 %s, its admission pinned %s: not enforced, the endorsement key already identifies the machine", member.Slot, current, member.PCR1)
 }
 
 func (d *Daemon) changed(node *Node) {

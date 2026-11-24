@@ -29,7 +29,7 @@ The policy is a JSON document that each node fetches from the configured URLs, c
 | 7 | `secure_boot.pcr7` and `secure_boot_all[].pcr7` |
 | 11 | `versions[].pcr11` (the OS image) |
 
-PCR 0, 7 and 11 must have at least one accepted value. PCR 2 and 3 are checked when the policy lists values for them. PCR 1 identifies the board and is pinned in the admission entry instead.
+PCR 0, 7 and 11 must have at least one accepted value. PCR 2 and 3 are checked when the policy lists values for them. PCR 1 identifies the board. It is recorded in the admission entry and checked when a node joins, but not enforced afterwards: the PCR 1 of a running board was seen to differ from its value at admission, and the endorsement key already ties a member to its machine. A change is logged.
 
 ## The log
 
