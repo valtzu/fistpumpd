@@ -7,15 +7,15 @@ from cryptography.hazmat.primitives.asymmetric import ed25519
 
 
 def seal(plain, target):
-    if os.environ.get("RPI_CLUSTER_NO_SEAL") or not Path("/dev/tpmrm0").exists():
+    if os.environ.get("FISTPUMPD_NO_SEAL") or not Path("/dev/tpmrm0").exists():
         return False
-    result = subprocess.run(["systemd-creds", "encrypt", "--with-key=tpm2", "--tpm2-pcrs=7", "--name=rpi-cluster", "-", str(target)],
+    result = subprocess.run(["systemd-creds", "encrypt", "--with-key=tpm2", "--tpm2-pcrs=7", "--name=fistpumpd", "-", str(target)],
                             input=plain, capture_output=True, check=False)
     return result.returncode == 0
 
 
 def unseal(source):
-    result = subprocess.run(["systemd-creds", "decrypt", "--name=rpi-cluster", str(source), "-"], capture_output=True, check=True)
+    result = subprocess.run(["systemd-creds", "decrypt", "--name=fistpumpd", str(source), "-"], capture_output=True, check=True)
     return result.stdout
 
 

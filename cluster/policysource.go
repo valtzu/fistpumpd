@@ -32,7 +32,7 @@ func HTTPOpener(url string) ([]byte, error) {
 }
 
 func verifySignature(sums, signature []byte, keyring string) error {
-	work, err := os.MkdirTemp("", "rpi-cluster-gpg-")
+	work, err := os.MkdirTemp("", "fistpumpd-gpg-")
 	if err != nil {
 		return err
 	}

@@ -254,7 +254,7 @@ func (node *Node) onLog(payload Obj) Obj {
 }
 
 func TokenRequest(kind, nonce string, slot int) []byte {
-	return []byte(fmt.Sprintf("rpi-cluster token %s %s %d", kind, nonce, slot))
+	return []byte(fmt.Sprintf("fistpumpd token %s %s %d", kind, nonce, slot))
 }
 
 func (node *Node) onTokenChallenge() Obj {

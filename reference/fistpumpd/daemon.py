@@ -12,7 +12,7 @@ from . import identity, member as members, net, policy as policy_module, policys
 from . import topology as topologies
 from .candidate import Candidate
 
-log = logging.getLogger("rpi-cluster")
+log = logging.getLogger("fistpumpd")
 POLICY_MAX_AGE = 3600
 
 

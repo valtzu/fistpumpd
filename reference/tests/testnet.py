@@ -1,4 +1,4 @@
-from rpicluster import attest, member as members, policy as policy_module, store, topology
+from fistpumpd import attest, member as members, policy as policy_module, store, topology
 
 from tests import helpers
 
@@ -54,7 +54,7 @@ class Clock:
 
 
 def candidate(network, name, pcrs=None, facts=None, topology_in_force=TOPOLOGY, tpm=None, clock=None):
-    from rpicluster.candidate import Candidate
+    from fistpumpd.candidate import Candidate
 
     node = helpers.Node(name)
     node.record["ek_hash"] = None

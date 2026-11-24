@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rpicluster import facts, genesis, identity
+from fistpumpd import facts, genesis, identity
 
 
 def fake_root(tmp, memory_kib=8 * 1024 * 1024, disks=None, usr_source="/dev/mmcblk0p2", model="Raspberry Pi 4 Model B Rev 1.5"):
@@ -57,7 +57,7 @@ class GenesisTest(unittest.TestCase):
 
 class IdentityTest(unittest.TestCase):
     def test_key_persists(self):
-        os.environ["RPI_CLUSTER_NO_SEAL"] = "1"
+        os.environ["FISTPUMPD_NO_SEAL"] = "1"
         with tempfile.TemporaryDirectory() as tmp:
             first = identity.public_hex(identity.load_key(tmp))
             second = identity.public_hex(identity.load_key(tmp))

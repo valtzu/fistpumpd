@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rpicluster import apply, chain, topology
+from fistpumpd import apply, chain, topology
 from tests import helpers, testnet
 
 GENESIS = {"min_members": 2}

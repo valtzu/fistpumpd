@@ -60,7 +60,7 @@ type rig struct {
 }
 
 func newRig(t *testing.T, count int) *rig {
-	t.Setenv("RPI_CLUSTER_NO_SEAL", "1")
+	t.Setenv("FISTPUMPD_NO_SEAL", "1")
 	r := &rig{t: t, dir: t.TempDir(), document: policyDocument(), verifier: FakeVerifier{}}
 	for index := 0; index < count; index++ {
 		r.tcp = append(r.tcp, freePort(t))

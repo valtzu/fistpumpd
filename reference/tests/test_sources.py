@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from rpicluster import discovery, policy as policy_module, policysource
+from fistpumpd import discovery, policy as policy_module, policysource
 
 
 def make_signing_key():

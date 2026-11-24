@@ -9,7 +9,7 @@ MAX_ROUNDS = 5
 
 
 def token_request(kind, nonce, slot):
-    return f"rpi-cluster token {kind} {nonce} {slot}".encode()
+    return f"fistpumpd token {kind} {nonce} {slot}".encode()
 
 
 class Refused(Exception):

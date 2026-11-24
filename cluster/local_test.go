@@ -68,7 +68,7 @@ func TestGenesisRefusesALoneNode(t *testing.T) {
 }
 
 func TestIdentityKeyPersists(t *testing.T) {
-	t.Setenv("RPI_CLUSTER_NO_SEAL", "1")
+	t.Setenv("FISTPUMPD_NO_SEAL", "1")
 	directory := t.TempDir()
 	first, err := LoadKey(directory)
 	if err != nil {
@@ -97,7 +97,7 @@ func TestTLSIdentityIsStable(t *testing.T) {
 }
 
 func TestTokensAreCreatedOnceAndInstalled(t *testing.T) {
-	t.Setenv("RPI_CLUSTER_NO_SEAL", "1")
+	t.Setenv("FISTPUMPD_NO_SEAL", "1")
 	tokens, err := NewTokens(t.TempDir(), t.TempDir(), true)
 	if err != nil {
 		t.Fatal(err)

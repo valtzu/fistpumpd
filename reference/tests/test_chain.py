@@ -1,6 +1,6 @@
 import unittest
 
-from rpicluster import chain
+from fistpumpd import chain
 from tests import helpers
 
 

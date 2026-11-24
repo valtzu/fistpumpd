@@ -10,10 +10,10 @@ from pathlib import Path
 
 from . import daemon, genesis, net, policysource, tpm
 
-RUN = "/run/rpi-cluster"
-STATE = "/var/lib/rpi-cluster"
-GENESIS = "/usr/lib/rpi-cluster/genesis.json"
-TOPOLOGIES = ("/etc/rpi-cluster/topology.json", "/usr/lib/rpi-cluster/topology.json")
+RUN = "/run/fistpumpd"
+STATE = "/var/lib/fistpumpd"
+GENESIS = "/usr/lib/fistpumpd/genesis.json"
+TOPOLOGIES = ("/etc/fistpumpd/topology.json", "/usr/lib/fistpumpd/topology.json")
 KEYRINGS = ("/usr/lib/systemd/import-pubring.pgp", "/usr/lib/systemd/import-pubring.gpg")
 BUILD_CERTIFICATE = "/usr/lib/verity.d/mkosi.crt"
 
@@ -79,7 +79,7 @@ def show_status(reply):
 
 
 def main():
-    parser = argparse.ArgumentParser(prog="rpi-cluster")
+    parser = argparse.ArgumentParser(prog="fistpumpd")
     parser.add_argument("--state", default=STATE)
     parser.add_argument("--genesis", default=GENESIS)
     parser.add_argument("--topology", default=next((t for t in TOPOLOGIES if Path(t).exists()), TOPOLOGIES[0]))
@@ -107,12 +107,12 @@ def main():
         try:
             print(json.dumps(submit(arguments)))
         except (net.TransportError, net.Refused) as error:
-            sys.exit(f"rpi-cluster: {error}")
+            sys.exit(f"fistpumpd: {error}")
         return
     try:
         reply = control(arguments)
     except (net.TransportError, net.Refused) as error:
-        sys.exit(f"rpi-cluster: {error}")
+        sys.exit(f"fistpumpd: {error}")
     if arguments.command == "status":
         show_status(reply)
     else:

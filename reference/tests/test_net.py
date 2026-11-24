@@ -1,8 +1,8 @@
 import tempfile
 import unittest
 
-from rpicluster import attest, member as members, net, policy as policy_module, store, tls, topology
-from rpicluster.candidate import Candidate
+from fistpumpd import attest, member as members, net, policy as policy_module, store, tls, topology
+from fistpumpd.candidate import Candidate
 from tests import helpers, testnet
 
 

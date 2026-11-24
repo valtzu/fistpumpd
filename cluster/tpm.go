@@ -100,7 +100,7 @@ func (prover *TPMProver) prepare(work string) error {
 }
 
 func workDir() (string, func()) {
-	directory, err := os.MkdirTemp("", "rpi-cluster-tpm-")
+	directory, err := os.MkdirTemp("", "fistpumpd-tpm-")
 	if err != nil {
 		panic(err)
 	}

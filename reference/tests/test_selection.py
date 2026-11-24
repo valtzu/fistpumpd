@@ -1,6 +1,6 @@
 import unittest
 
-from rpicluster import selector, topology
+from fistpumpd import selector, topology
 
 TOPOLOGY = topology.parse({
     "version": 7,

@@ -1,6 +1,6 @@
 import unittest
 
-from rpicluster import attest, chain, member as members
+from fistpumpd import attest, chain, member as members
 from tests import helpers, testnet
 
 
@@ -177,7 +177,7 @@ class EvictionTest(unittest.TestCase):
 
 class TopologyTest(unittest.TestCase):
     def test_adopting_a_new_topology_is_logged(self):
-        from rpicluster import topology
+        from fistpumpd import topology
 
         network = testnet.Network()
         nodes = testnet.make_cluster(network, 3)
@@ -189,7 +189,7 @@ class TopologyTest(unittest.TestCase):
         self.assertEqual(nodes[0].log.topology["version"], 2)
 
     def test_a_node_with_an_older_topology_refuses_to_sign(self):
-        from rpicluster import topology
+        from fistpumpd import topology
 
         network = testnet.Network()
         nodes = testnet.make_cluster(network, 3)

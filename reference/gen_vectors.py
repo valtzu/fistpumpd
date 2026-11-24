@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 from cryptography.x509.oid import NameOID
 
-from rpicluster import apply, canonical, chain, member, policy, selector, topology
+from fistpumpd import apply, canonical, chain, member, policy, selector, topology
 
 
 def key(seed):

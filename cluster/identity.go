@@ -19,7 +19,7 @@ import (
 )
 
 func sealingAvailable() bool {
-	if os.Getenv("RPI_CLUSTER_NO_SEAL") != "" {
+	if os.Getenv("FISTPUMPD_NO_SEAL") != "" {
 		return false
 	}
 	_, err := os.Stat("/dev/tpmrm0")
@@ -45,7 +45,7 @@ func LoadKey(directory string) (ed25519.PrivateKey, error) {
 	}
 	sealed, plain := filepath.Join(directory, "sign.key.cred"), filepath.Join(directory, "sign.key")
 	if _, err := os.Stat(sealed); err == nil {
-		seed, err := unseal(sealed, "rpi-cluster")
+		seed, err := unseal(sealed, "fistpumpd")
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +58,7 @@ func LoadKey(directory string) (ed25519.PrivateKey, error) {
 	if _, err := rand.Read(seed); err != nil {
 		return nil, err
 	}
-	if !sealTo(seed, sealed, "rpi-cluster") {
+	if !sealTo(seed, sealed, "fistpumpd") {
 		if err := os.WriteFile(plain, seed, 0o600); err != nil {
 			return nil, err
 		}
@@ -90,7 +90,7 @@ func CreateTLS(directory string) (keyPath, certPath, fingerprint string, err err
 		}
 		serial, _ := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 62))
 		template := &x509.Certificate{
-			SerialNumber: serial, Subject: pkix.Name{CommonName: "rpi-cluster-member"},
+			SerialNumber: serial, Subject: pkix.Name{CommonName: "fistpumpd-member"},
 			NotBefore: time.Now().Add(-24 * time.Hour), NotAfter: time.Now().Add(3650 * 24 * time.Hour),
 			KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		}

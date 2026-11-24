@@ -146,7 +146,7 @@ class Host:
         subprocess.run(arguments, capture_output=True, check=False, timeout=120)
 
 
-def apply(settings, root="/", run_directory="/run/rpi-cluster", host=None):
+def apply(settings, root="/", run_directory="/run/fistpumpd", host=None):
     host = host or Host()
     root = Path(root)
     changed = []

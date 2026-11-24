@@ -8,10 +8,10 @@ import time
 import unittest
 from pathlib import Path
 
-from rpicluster import apply, attest, daemon, genesis, member as members
+from fistpumpd import apply, attest, daemon, genesis, member as members
 from tests import testnet
 
-os.environ["RPI_CLUSTER_NO_SEAL"] = "1"
+os.environ["FISTPUMPD_NO_SEAL"] = "1"
 TOPOLOGY = {
     "version": 1,
     "roles": [

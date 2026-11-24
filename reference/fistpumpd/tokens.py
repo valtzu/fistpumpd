@@ -12,7 +12,7 @@ class Tokens:
     def __init__(self, directory, credstore=CREDSTORE, seal=True):
         self.directory = Path(directory)
         self.credstore = Path(credstore)
-        self.seal = seal and Path("/dev/tpmrm0").exists() and not os.environ.get("RPI_CLUSTER_NO_SEAL")
+        self.seal = seal and Path("/dev/tpmrm0").exists() and not os.environ.get("FISTPUMPD_NO_SEAL")
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     def path(self, kind):

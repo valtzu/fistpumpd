@@ -6,7 +6,7 @@ import time
 import unittest
 
 sys.path.insert(0, "/work")
-from rpicluster import attest, tpm
+from fistpumpd import attest, tpm
 
 
 class SwtpmTest(unittest.TestCase):

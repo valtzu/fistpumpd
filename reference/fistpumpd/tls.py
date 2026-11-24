@@ -13,7 +13,7 @@ def fingerprint(certificate_der):
     return hashlib.sha256(certificate_der).hexdigest()
 
 
-def create(directory, name="rpi-cluster-member"):
+def create(directory, name="fistpumpd-member"):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     key_path, cert_path = directory / "tls.key", directory / "tls.crt"

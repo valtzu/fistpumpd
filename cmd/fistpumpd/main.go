@@ -19,17 +19,17 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/valtzu/rpi-cluster/cluster"
+	"github.com/valtzu/fistpumpd/cluster"
 )
 
 const (
-	runDirectory     = "/run/rpi-cluster"
-	stateDirectory   = "/var/lib/rpi-cluster"
-	genesisPath      = "/usr/lib/rpi-cluster/genesis.json"
+	runDirectory     = "/run/fistpumpd"
+	stateDirectory   = "/var/lib/fistpumpd"
+	genesisPath      = "/usr/lib/fistpumpd/genesis.json"
 	buildCertificate = "/usr/lib/verity.d/mkosi.crt"
 )
 
-var topologyPaths = []string{"/etc/rpi-cluster/topology.json", "/usr/lib/rpi-cluster/topology.json"}
+var topologyPaths = []string{"/etc/fistpumpd/topology.json", "/usr/lib/fistpumpd/topology.json"}
 var keyrings = []string{"/usr/lib/systemd/import-pubring.pgp", "/usr/lib/systemd/import-pubring.gpg"}
 
 func main() {
@@ -57,13 +57,13 @@ func main() {
 		usage()
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "rpi-cluster:", err)
+		fmt.Fprintln(os.Stderr, "fistpumpd:", err)
 		os.Exit(1)
 	}
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: rpi-cluster daemon | status | log | evict SLOT [--reason TEXT] | reset-sign --log FILE --key FILE --certificate FILE --keep SLOTS | submit FILE | verify [--certificate FILE] < log.json")
+	fmt.Fprintln(os.Stderr, "usage: fistpumpd daemon | status | log | evict SLOT [--reason TEXT] | reset-sign --log FILE --key FILE --certificate FILE --keep SLOTS | submit FILE | verify [--certificate FILE] < log.json")
 	os.Exit(2)
 }
 

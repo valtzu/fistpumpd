@@ -1,4 +1,4 @@
-GO_IMAGE ?= rpi-gotest
+GO_IMAGE ?= fistpumpd-test
 RUN = podman run --rm -v $(CURDIR):/src -v rpi-gocache:/root/.cache -w /src $(GO_IMAGE)
 
 test:
@@ -11,7 +11,7 @@ vectors:
 	python3 reference/gen_vectors.py testdata/vectors.json
 
 build:
-	$(RUN) sh -c 'for arch in arm64 amd64; do CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -trimpath -ldflags "-s -w" -o out/rpi-cluster-$$arch ./cmd/rpi-cluster; done'
+	$(RUN) sh -c 'for arch in arm64 amd64; do CGO_ENABLED=0 GOOS=linux GOARCH=$$arch go build -trimpath -ldflags "-s -w" -o out/fistpumpd-$$arch ./cmd/fistpumpd; done'
 
 image:
 	podman build -t $(GO_IMAGE) -f Containerfile.test .

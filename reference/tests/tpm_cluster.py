@@ -6,8 +6,8 @@ import time
 import unittest
 
 sys.path.insert(0, "/work")
-os.environ["RPI_CLUSTER_NO_SEAL"] = "1"
-from rpicluster import tpm
+os.environ["FISTPUMPD_NO_SEAL"] = "1"
+from fistpumpd import tpm
 from tests.test_daemon import Rig
 
 ZERO = "0" * 64

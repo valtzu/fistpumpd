@@ -1,3 +1,3 @@
-module github.com/valtzu/rpi-cluster
+module github.com/valtzu/fistpumpd
 
 go 1.24

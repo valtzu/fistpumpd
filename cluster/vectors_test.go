@@ -230,7 +230,7 @@ func TestApplyVectors(t *testing.T) {
 			t.Errorf("priority%v = %d", row[:3], got)
 		}
 	}
-	if got := string(Marshal(Obj{"x": "y"})); got == "" || vectors(t)["token_request"].([]any)[0] != "rpi-cluster token server "+"abababababababababababababababababababab"+" 3" {
+	if got := string(Marshal(Obj{"x": "y"})); got == "" || vectors(t)["token_request"].([]any)[0] != "fistpumpd token server "+"abababababababababababababababababababab"+" 3" {
 		t.Errorf("token request vector %v", vectors(t)["token_request"])
 	}
 }
