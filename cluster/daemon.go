@@ -62,6 +62,7 @@ type Daemon struct {
 	topology   *Topology
 	failing    map[int]time.Time
 	pcr1Noted  map[int]string
+	images     map[int]string
 	status     Obj
 	settings   *View
 	servers    []interface{ Stop() }
@@ -308,7 +309,7 @@ func (d *Daemon) apiSnapshot() APISnapshot {
 		_, bad := failing[member.Slot]
 		snapshot.Members = append(snapshot.Members, APIMember{
 			Slot: member.Slot, Number: member.Number, Addr: member.Addr(), Roles: member.Roles, Facts: member.Facts,
-			Image: str(member.Policy, "image"), Healthy: !bad,
+			Image: d.imageOf(member), Healthy: !bad,
 		})
 	}
 	return snapshot
@@ -417,19 +418,58 @@ func sleep(ctx context.Context, seconds float64) bool {
 }
 
 func (d *Daemon) attestMember(member *Member) bool {
-	prover := d.transport.Prover(member.Addr(), str(member.Node, "tls_fp"))
-	pcrs, err := Attest(prover, d.cfg.Verifier, str(member.Node, "ek_hash"), NewNonce(), member.SignPub(), str(member.Node, "tls_fp"))
-	if err == nil {
-		if _, err = d.loadPolicy(false).Check(pcrs); err != nil {
-			_, err = d.refreshPolicyAfterRefusal().Check(pcrs)
-		}
-	}
+	pcrs, image, err := d.attestImage(member)
 	if err != nil {
 		log.Printf("slot %d failed attestation: %v", member.Slot, err)
 		return false
 	}
+	d.rememberImage(member.Slot, image)
 	d.notePCR1(member, pcrs["1"])
 	return true
+}
+
+func (d *Daemon) attestImage(member *Member) (map[string]string, string, error) {
+	prover := d.transport.Prover(member.Addr(), str(member.Node, "tls_fp"))
+	pcrs, err := Attest(prover, d.cfg.Verifier, str(member.Node, "ek_hash"), NewNonce(), member.SignPub(), str(member.Node, "tls_fp"))
+	if err != nil {
+		return nil, "", err
+	}
+	image, err := d.loadPolicy(false).Check(pcrs)
+	if err != nil {
+		image, err = d.refreshPolicyAfterRefusal().Check(pcrs)
+	}
+	return pcrs, image, err
+}
+
+func (d *Daemon) rememberImage(slot int, image string) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	if d.images == nil {
+		d.images = map[int]string{}
+	}
+	d.images[slot] = image
+}
+
+func (d *Daemon) imageOf(member *Member) string {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+	if image, ok := d.images[member.Slot]; ok {
+		return image
+	}
+	return str(member.Policy, "image")
+}
+
+func (d *Daemon) refreshOwnImage(node *Node) {
+	slot := node.Slot()
+	active, _, _, _ := node.Snapshot()
+	for _, member := range active {
+		if member.Slot == slot {
+			if _, image, err := d.attestImage(member); err == nil {
+				d.rememberImage(slot, image)
+			}
+			return
+		}
+	}
 }
 
 func (d *Daemon) notePCR1(member *Member, current string) {
@@ -618,6 +658,7 @@ func (d *Daemon) checkPeers(ctx context.Context, node *Node) {
 			d.mutex.Unlock()
 		}
 	}
+	d.refreshOwnImage(node)
 	active, _, _, _ := node.Snapshot()
 	alive := map[int]bool{}
 	for _, member := range active {
