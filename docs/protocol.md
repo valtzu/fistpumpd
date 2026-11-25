@@ -110,7 +110,7 @@ A member serves a read-only, Kubernetes-style HTTP API on `api_port` (genesis, d
 
 The group is `cluster.fistpumpd.example/v1alpha1`:
 
-- `machines`: one per active member, named `node-N`, where N is the node's number. The facts and the roles (`role.fistpumpd.example/<role>`) are labels. `status` has the phase (`Running`, or `Failed` while attestation fails), the address, the roles and the image.
+- `machines`: one per active member, named `node-N`, where N is the node's number. The facts and the roles (`role.fistpumpd.example/<role>`) are labels. `status` has the phase (`Running`, or `Failed` while attestation fails), the address, the roles and the image, which is the one the node matched at its last attestation (the admission record until the first one).
 - `machinesets`: one per role of the topology, named after the role. `spec.replicas` is `min`, `spec.maxReplicas` is `max`, and `status` has the number of holders and the number of healthy holders.
 
 `get` and `list` work, and the Table format that `kubectl get` asks for is served. Any other verb is refused.
