@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 340" role="img" aria-label="Three nodes boot one after another. The first founds the log, the others are attested and admitted by the members.">
+<style>
+svg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;--fg:#24292f;--mut:#57606a;--ac:#0969da;--ok:#1a7f37}
+@media (prefers-color-scheme:dark){svg{--fg:#e6edf3;--mut:#8b949e;--ac:#58a6ff;--ok:#3fb950}}
+text{text-anchor:middle;fill:var(--fg)}
+.t{font-size:16px;font-weight:600}.s{font-size:13px;fill:var(--mut)}.cap{font-size:15px}
+.ok{fill:var(--ok)}.ac{fill:var(--ac)}
+rect,path{fill:none;stroke-width:1.5}
+.cand{stroke:var(--mut);stroke-dasharray:5 4}.memb{stroke:var(--ok);stroke-width:2.5}
+.ent,.ln{stroke:var(--fg)}.dot{stroke:var(--mut);stroke-dasharray:2 4}
+.ar{stroke:var(--ac)}#h path{fill:var(--ac);stroke:none}
+@keyframes n0{0%{opacity:0}1.85%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.n0{opacity:1;animation:n0 27s linear infinite}
+@keyframes m0{0%,14.81%{opacity:0}16.67%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.m0{opacity:1;animation:m0 27s linear infinite}
+@keyframes e0{0%,14.81%{opacity:0}16.67%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.e0{opacity:1;animation:e0 27s linear infinite}
+@keyframes n1{0%,25.93%{opacity:0}27.78%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.n1{opacity:1;animation:n1 27s linear infinite}
+@keyframes m1{0%,53.70%{opacity:0}55.56%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.m1{opacity:1;animation:m1 27s linear infinite}
+@keyframes e1{0%,46.30%{opacity:0}48.15%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.e1{opacity:1;animation:e1 27s linear infinite}
+@keyframes n2{0%,62.96%{opacity:0}64.81%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.n2{opacity:1;animation:n2 27s linear infinite}
+@keyframes m2{0%,75.93%{opacity:0}77.78%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.m2{opacity:1;animation:m2 27s linear infinite}
+@keyframes e2{0%,74.07%{opacity:0}75.93%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.e2{opacity:1;animation:e2 27s linear infinite}
+@keyframes j1{0%,29.63%{opacity:0}31.48%,61.11%{opacity:1}62.96%,100%{opacity:0}}
+.j1{opacity:0;animation:j1 27s linear infinite}
+@keyframes a1{0%,38.89%{opacity:0}40.74%,61.11%{opacity:1}62.96%,100%{opacity:0}}
+.a1{opacity:0;animation:a1 27s linear infinite}
+@keyframes j2{0%,65.93%{opacity:0}67.78%,79.63%{opacity:1}81.48%,100%{opacity:0}}
+.j2{opacity:0;animation:j2 27s linear infinite}
+@keyframes a2{0%,69.63%{opacity:0}71.48%,79.63%{opacity:1}81.48%,100%{opacity:0}}
+.a2{opacity:0;animation:a2 27s linear infinite}
+@keyframes a3{0%,69.63%{opacity:0}71.48%,79.63%{opacity:1}81.48%,100%{opacity:0}}
+.a3{opacity:0;animation:a3 27s linear infinite}
+@keyframes c0{0%{opacity:0}1.85%,11.11%{opacity:1}12.96%,100%{opacity:0}}
+.c0{opacity:0;animation:c0 27s linear infinite}
+@keyframes c1{0%,12.96%{opacity:0}14.81%,24.07%{opacity:1}25.93%,100%{opacity:0}}
+.c1{opacity:0;animation:c1 27s linear infinite}
+@keyframes c2{0%,25.93%{opacity:0}27.78%,37.04%{opacity:1}38.89%,100%{opacity:0}}
+.c2{opacity:0;animation:c2 27s linear infinite}
+@keyframes c3{0%,38.89%{opacity:0}40.74%,50.00%{opacity:1}51.85%,100%{opacity:0}}
+.c3{opacity:0;animation:c3 27s linear infinite}
+@keyframes c4{0%,51.85%{opacity:0}53.70%,61.11%{opacity:1}62.96%,100%{opacity:0}}
+.c4{opacity:0;animation:c4 27s linear infinite}
+@keyframes c5{0%,62.96%{opacity:0}64.81%,75.93%{opacity:1}77.78%,100%{opacity:0}}
+.c5{opacity:0;animation:c5 27s linear infinite}
+@keyframes c6{0%,77.78%{opacity:0}79.63%,97.41%{opacity:1}99.26%,100%{opacity:0}}
+.c6{opacity:1;animation:c6 27s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z"/></marker></defs>
+<g class="n0"><rect class="cand" x="50" y="56" width="180" height="84" rx="8"/><text class="t" x="140.0" y="86">node A</text></g>
+<g class="m0"><rect class="memb" x="50" y="56" width="180" height="84" rx="8"/><text class="s ok" x="140.0" y="110">member · server</text><path class="dot" d="M140.0 144V210"/></g>
+<g class="e0"><rect class="ent" x="50" y="214" width="180" height="58" rx="4"/><text class="t" x="140.0" y="238">#0 admit A</text><text class="s" x="140.0" y="258">signed by A</text></g>
+<g class="n1"><rect class="cand" x="310" y="56" width="180" height="84" rx="8"/><text class="t" x="400.0" y="86">node B</text></g>
+<g class="m1"><rect class="memb" x="310" y="56" width="180" height="84" rx="8"/><text class="s ok" x="400.0" y="110">member · server</text><path class="dot" d="M400.0 144V210"/></g>
+<g class="e1"><rect class="ent" x="310" y="214" width="180" height="58" rx="4"/><text class="t" x="400.0" y="238">#1 admit B</text><text class="s" x="400.0" y="258">signed by A</text><path class="ln" d="M230 243.0H310"/></g>
+<g class="n2"><rect class="cand" x="570" y="56" width="180" height="84" rx="8"/><text class="t" x="660.0" y="86">node C</text></g>
+<g class="m2"><rect class="memb" x="570" y="56" width="180" height="84" rx="8"/><text class="s ok" x="660.0" y="110">member · agent</text><path class="dot" d="M660.0 144V210"/></g>
+<g class="e2"><rect class="ent" x="570" y="214" width="180" height="58" rx="4"/><text class="t" x="660.0" y="238">#2 admit C</text><text class="s" x="660.0" y="258">signed by A, B</text><path class="ln" d="M490 243.0H570"/></g>
+<g class="j1"><path class="ar" marker-end="url(#h)" d="M304 82H238"/><text class="s ac" x="271.0" y="75">join</text></g>
+<g class="a1"><path class="ar" marker-end="url(#h)" d="M236 118H302"/><text class="s ac" x="269.0" y="111">attest</text></g>
+<g class="j2"><path class="ar" marker-end="url(#h)" d="M564 82H498"/><text class="s ac" x="531.0" y="75">join</text></g>
+<g class="a2"><path class="ar" marker-end="url(#h)" d="M496 118H562"/><text class="s ac" x="529.0" y="111">attest</text></g>
+<g class="a3"><path class="ar" marker-end="url(#h)" d="M140 50C240 6 560 6 656 48"/><text class="s ac" x="400" y="14">attest</text></g>
+<text class="cap c0" x="400" y="318">Node A boots and broadcasts. No member answers.</text>
+<text class="cap c1" x="400" y="318">A waits, then founds the log. It starts no services alone.</text>
+<text class="cap c2" x="400" y="318">Node B boots, finds A and asks to join.</text>
+<text class="cap c3" x="400" y="318">A checks B's TPM quote against the signed policy and signs the admission.</text>
+<text class="cap c4" x="400" y="318">B verifies the log, attests A in turn and becomes a member.</text>
+<text class="cap c5" x="400" y="318">Node C joins the same way. Now A and B both attest it and sign.</text>
+<text class="cap c6" x="400" y="318">Each member writes its configuration from the same log.</text>
+</svg>

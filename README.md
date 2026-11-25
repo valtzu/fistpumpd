@@ -4,6 +4,10 @@ fistpumpd is a membership daemon for small clusters of machines that have a TPM 
 
 There is no central server, no join token to hand out and no per-node configuration: every machine boots the same signed image.
 
+<p align="center">
+  <img src="docs/images/cluster-forming.svg" width="800" alt="Three nodes boot one after another. The first founds the log, the others are attested and admitted by the members.">
+</p>
+
 ## Why
 
 Bringing up a cluster normally needs something outside the cluster: a provisioning server, an inventory of host names, or a shared secret copied to each machine. Each of those is one more thing to run and protect, and a secret proves only that a machine was given it, not what the machine runs.
@@ -25,6 +29,28 @@ Every node runs `fistpumpd daemon`. On boot the node looks for members with a UD
 
 - If a member answers, the node asks to join. The members verify its TPM quote, pick its roles from the topology and sign its admission. The node then attests the members itself before it trusts the log it was given.
 - If nobody answers, the node waits (`founder_wait`, 20 seconds by default) and founds a new log if it is the only candidate, or the one with the lowest endorsement key hash.
+
+An admission with two members in the cluster:
+
+```mermaid
+sequenceDiagram
+    participant C as New node
+    participant S as Member (sponsor)
+    participant V as Other member
+    C->>S: join: keys, facts
+    S->>C: attest
+    C-->>S: TPM quote
+    Note over S: check quote against policy,<br/>select roles
+    S->>V: propose admit entry
+    V->>C: attest
+    C-->>V: TPM quote
+    V-->>S: signature
+    Note over S: quorum reached, append entry
+    S->>C: log
+    C->>S: attest
+    C->>V: attest
+    Note over C: quorum of members passes,<br/>become a member
+```
 
 On every change of the log a member applies what follows from it:
 
@@ -137,7 +163,7 @@ To change the topology of a running cluster, raise `version` and ship the new fi
 fistpumpd daemon                                  run the member
 fistpumpd status                                  members, roles, failing peers
 fistpumpd log                                     the log as JSON
-fistpumpd evict SLOT [--reason TEXT]              propose removing a member
+fistpumpd evict NODE [--reason TEXT]              propose removing a member, by node number
 fistpumpd verify [--certificate FILE] < log.json  check a log from outside the cluster
 fistpumpd version
 ```
