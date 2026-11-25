@@ -134,7 +134,7 @@ A local control socket at `/run/fistpumpd/control.sock` serves the CLI.
 - Every member attests one peer at a time every `attest_interval` seconds. A peer that fails for `evict_after` seconds is proposed for eviction. A voter signs an `evict` only if its own fresh attestation of the target fails at that moment.
 - A node whose slot is not active stops. Rejoining is manual: remove `/var/lib/fistpumpd`.
 - **Lost quorum**: `fistpumpd reset-sign` creates a `reset` entry offline with the build key, given a log from a surviving member and the slots to keep. `fistpumpd submit` hands it to a member, which applies and pushes it. Members not kept are evicted.
-- **Topology change**: a node that finds a higher topology version than the log's proposes a `topology` entry. The quorum signs it only if the members hold the same topology.
+- **Topology change**: a node that finds a higher topology version than the log's proposes a `topology` entry. The quorum signs it only if the members hold the same topology. Until the log carries the new digest, a node keeps rendering the last agreed topology. It keeps a copy of that topology in its state directory (`topology.json`), because the file on disk may already be newer. A node that has no such copy, f.e. right after an upgrade from a version that did not keep one, renders the file on disk until the log agrees.
 
 ## Operating
 

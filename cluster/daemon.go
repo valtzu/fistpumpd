@@ -452,14 +452,16 @@ func (d *Daemon) changed(node *Node) {
 	d.apply.Lock()
 	defer d.apply.Unlock()
 	var plan *View
+	var topology *Topology
 	evicted := false
-	topology := node.Topology()
+	local := node.Topology()
 	node.WithLog(func(chain *Chain) {
 		slot := chain.SlotOf(str(d.record, "sign_pub"))
 		if slot < 0 {
 			evicted = true
 			return
 		}
+		topology = d.agreedTopology(chain, local)
 		plan = BuildView(chain, slot, topology, d.cfg.Genesis.MinMembers, d.cfg.Interface)
 	})
 	if evicted {
@@ -493,6 +495,43 @@ func (d *Daemon) changed(node *Node) {
 	}
 }
 
+func (d *Daemon) agreedTopologyPath() string {
+	return filepath.Join(d.cfg.Paths.State, "topology.json")
+}
+
+func (d *Daemon) keptTopology() *Topology {
+	data, err := os.ReadFile(d.agreedTopologyPath())
+	if err != nil {
+		return nil
+	}
+	document, err := DecodeObj(data)
+	if err != nil {
+		return nil
+	}
+	kept, err := ParseTopology(document)
+	if err != nil {
+		return nil
+	}
+	return kept
+}
+
+func (d *Daemon) agreedTopology(chain *Chain, local *Topology) *Topology {
+	digest := str(chain.Topology, "digest")
+	if digest == "" || local.Digest == digest {
+		if digest != "" {
+			if err := writeAtomic(d.agreedTopologyPath(), Marshal(local.Document), 0o600); err != nil {
+				log.Printf("agreed topology not kept: %v", err)
+			}
+		}
+		return local
+	}
+	if kept := d.keptTopology(); kept != nil && kept.Digest == digest {
+		return kept
+	}
+	log.Printf("topology v%d is not agreed yet and no copy of the agreed one is kept; using the local file", local.Version)
+	return local
+}
+
 func (d *Daemon) root() string {
 	if d.cfg.Paths.Root == "" {
 		return "/"
@@ -509,8 +548,8 @@ func (d *Daemon) housekeeping(ctx context.Context) {
 	}
 	d.loadPolicy(false)
 	d.reloadTopology(node)
-	d.changed(node)
 	d.adoptTopology(ctx, node)
+	d.changed(node)
 	d.checkPeers(ctx, node)
 	active, _, length, _ := node.Snapshot()
 	d.mutex.Lock()

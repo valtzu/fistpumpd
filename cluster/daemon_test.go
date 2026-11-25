@@ -334,3 +334,29 @@ func TestANewTopologyIsAdoptedThroughTheLog(t *testing.T) {
 		t.Fatal("the topology was not adopted")
 	}
 }
+
+func TestATopologyNobodyAgreedToIsNotRendered(t *testing.T) {
+	r := newRig(t, 2)
+	r.start(0, nil)
+	r.start(1, nil)
+	if !r.wait(func() bool { return memberCount(r.daemons[0]) == 2 && memberCount(r.daemons[1]) == 2 }, 60) {
+		t.Fatal("no cluster")
+	}
+	newer := Obj{}
+	for key, value := range withFiles(t, rigTopology) {
+		newer[key] = value
+	}
+	newer["version"] = 2
+	data, _ := json.Marshal(newer)
+	lone := r.daemons[0]
+	_ = os.WriteFile(lone.cfg.Paths.Topology, data, 0o644)
+	if !r.wait(func() bool { return lone.currentTopology().Version == 2 }, 40) {
+		t.Fatal("the node did not read the new file")
+	}
+	var rendered *Topology
+	local := lone.Node().Topology()
+	lone.Node().WithLog(func(chain *Chain) { rendered = lone.agreedTopology(chain, local) })
+	if rendered.Version != 1 {
+		t.Fatalf("topology v%d is rendered without agreement", rendered.Version)
+	}
+}
