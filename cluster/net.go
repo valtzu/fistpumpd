@@ -109,7 +109,7 @@ func StartServer(target Handler, bind, certFile, keyFile string) (*Server, error
 	if err != nil {
 		return nil, err
 	}
-	server := &http.Server{Handler: rpcHandler(target), ReadHeaderTimeout: 10 * time.Second, ErrorLog: nil}
+	server := &http.Server{Handler: rpcHandler(target), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: callTimout, IdleTimeout: 2 * callTimout, MaxHeaderBytes: 16 << 10}
 	go func() { _ = server.Serve(listener) }()
 	return &Server{server: server, listener: listener}, nil
 }

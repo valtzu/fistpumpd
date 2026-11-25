@@ -39,10 +39,11 @@ func verifySignature(sums, signature []byte, keyring string) error {
 	defer os.RemoveAll(work)
 	_ = os.WriteFile(filepath.Join(work, "sums"), sums, 0o600)
 	_ = os.WriteFile(filepath.Join(work, "sums.gpg"), signature, 0o600)
-	command := exec.Command("gpg", "--batch", "--no-default-keyring", "--keyring", keyring, "--trust-model", "always",
+	command := exec.Command("gpg", "--batch", "--no-default-keyring", "--keyring", keyring, "--trust-model", "always", "--status-fd", "1",
 		"--verify", filepath.Join(work, "sums.gpg"), filepath.Join(work, "sums"))
 	command.Env = append(os.Environ(), "GNUPGHOME="+work)
-	if err := command.Run(); err != nil {
+	status, err := command.Output()
+	if err != nil || !bytes.Contains(status, []byte("[GNUPG:] VALIDSIG ")) || bytes.Contains(status, []byte("[GNUPG:] REVKEYSIG ")) {
 		return fmt.Errorf("SHA256SUMS is not signed by the update key")
 	}
 	return nil
@@ -121,11 +122,46 @@ func MergePolicies(documents []Obj) Obj {
 	return merged
 }
 
+var policyFiles = []string{"SHA256SUMS", "SHA256SUMS.gpg", "versions.json"}
+
+func policyFile(url string) string { return url[stdstrings.LastIndex(url, "/")+1:] }
+
+func cacheDirectory(cache, url string) string {
+	sum := sha256.Sum256([]byte(stdstrings.TrimRight(url, "/")))
+	return filepath.Join(cache, hex.EncodeToString(sum[:8]))
+}
+
+func fetchCached(url, keyring, directory string, open Opener) (Obj, error) {
+	fetched := map[string][]byte{}
+	document, err := FetchPolicy(url, keyring, func(file string) ([]byte, error) {
+		data, err := open(file)
+		if err == nil {
+			fetched[policyFile(file)] = data
+		}
+		return data, err
+	})
+	if err != nil {
+		cached, cacheErr := FetchPolicy(url, keyring, func(file string) ([]byte, error) {
+			return os.ReadFile(filepath.Join(directory, policyFile(file)))
+		})
+		if cacheErr != nil {
+			return nil, err
+		}
+		return cached, nil
+	}
+	if os.MkdirAll(directory, 0o700) == nil {
+		for _, name := range policyFiles {
+			_ = writeAtomic(filepath.Join(directory, name), fetched[name], 0o600)
+		}
+	}
+	return document, nil
+}
+
 func RefreshPolicy(urls []string, keyring, cache string, open Opener) (Obj, error) {
 	var documents []Obj
 	var failures []string
 	for _, url := range urls {
-		document, err := FetchPolicy(url, keyring, open)
+		document, err := fetchCached(url, keyring, cacheDirectory(cache, url), open)
 		if err != nil {
 			failures = append(failures, err.Error())
 			continue
@@ -133,14 +169,7 @@ func RefreshPolicy(urls []string, keyring, cache string, open Opener) (Obj, erro
 		documents = append(documents, document)
 	}
 	if len(documents) > 0 {
-		merged := MergePolicies(documents)
-		if err := os.MkdirAll(filepath.Dir(cache), 0o755); err == nil {
-			_ = writeAtomic(cache, Marshal(merged), 0o644)
-		}
-		return merged, nil
-	}
-	if data, err := os.ReadFile(cache); err == nil {
-		return DecodeObj(data)
+		return MergePolicies(documents), nil
 	}
 	if len(failures) == 0 {
 		failures = []string{"no policy source"}

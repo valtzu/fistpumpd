@@ -39,12 +39,8 @@ func StartResponder(port int, bind string, info func() Obj) (*Responder, error) 
 			if err != nil || message["who"] != true {
 				continue
 			}
-			replyPort, ok := asInt(message["reply"])
-			if !ok {
-				continue
-			}
 			data, _ := json.Marshal(info())
-			_, _ = connection.WriteToUDP(data, &net.UDPAddr{IP: sender.IP, Port: replyPort})
+			_, _ = connection.WriteToUDP(data, sender)
 		}
 	}()
 	return responder, nil

@@ -76,8 +76,8 @@ func TestLyingAboutTheEndorsementKeyIsRefused(t *testing.T) {
 
 type forgingTPM struct{ *FakeTPM }
 
-func (forged forgingTPM) Quote(qualifying string) (Obj, error) {
-	quote, _ := forged.FakeTPM.Quote(qualifying)
+func (forged forgingTPM) Quote(nonce, signPub, tlsFP string) (Obj, error) {
+	quote, _ := forged.FakeTPM.Quote(nonce, signPub, tlsFP)
 	pcrs := Obj{}
 	for key, value := range goodPCRs {
 		pcrs[key] = value

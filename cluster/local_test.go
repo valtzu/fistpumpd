@@ -235,7 +235,7 @@ func TestATamperedPolicyIsRefused(t *testing.T) {
 
 func TestTheCacheServesWhenTheBucketIsDown(t *testing.T) {
 	open, keyring := signedPolicyBucket(t)
-	cache := filepath.Join(t.TempDir(), "policy.json")
+	cache := t.TempDir()
 	if _, err := RefreshPolicy([]string{"https://x/c"}, keyring, cache, open); err != nil {
 		t.Fatal(err)
 	}

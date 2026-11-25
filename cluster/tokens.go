@@ -40,7 +40,7 @@ func (tokens *Tokens) Get(kind string) string {
 }
 
 func (tokens *Tokens) Put(kind, value string) error {
-	return os.WriteFile(tokens.path(kind), []byte(value+"\n"), 0o600)
+	return writeAtomic(tokens.path(kind), []byte(value+"\n"), 0o600)
 }
 
 func (tokens *Tokens) Create() error {
@@ -60,7 +60,7 @@ func (tokens *Tokens) Create() error {
 }
 
 func (tokens *Tokens) InstallCredentials(kinds []string) error {
-	if err := os.MkdirAll(tokens.Credstore, 0o755); err != nil {
+	if err := os.MkdirAll(tokens.Credstore, 0o700); err != nil {
 		return err
 	}
 	for _, kind := range kinds {
@@ -77,7 +77,7 @@ func (tokens *Tokens) InstallCredentials(kinds []string) error {
 			}
 			continue
 		}
-		if err := os.WriteFile(target, []byte(value+"\n"), 0o644); err != nil {
+		if err := writeAtomic(target, []byte(value+"\n"), 0o600); err != nil {
 			return err
 		}
 	}

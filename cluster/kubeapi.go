@@ -298,7 +298,7 @@ func StartKubeAPI(handler http.Handler, bind, certFile, keyFile string, clientCA
 	if err != nil {
 		return nil, err
 	}
-	server := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second}
+	server := &http.Server{Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: callTimout, WriteTimeout: callTimout, IdleTimeout: 2 * callTimout, MaxHeaderBytes: 16 << 10}
 	go func() { _ = server.Serve(listener) }()
 	return &Server{server: server, listener: listener}, nil
 }

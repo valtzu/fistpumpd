@@ -13,6 +13,7 @@ import (
 const (
 	VoteLockSeconds = 300.0
 	MaxRounds       = 5
+	maxChallenges   = 1024
 )
 
 type Refused struct {
@@ -218,10 +219,10 @@ func (node *Node) call(member *Member, method string, payload Obj) (Obj, error) 
 func (node *Node) Handle(method string, payload Obj) (Obj, error) {
 	if len(method) > 7 && method[:7] == "attest_" {
 		node.mu.Lock()
-		tpm := node.cfg.TPM
+		tpm, isMember := node.cfg.TPM, node.slotLocked() >= 0
 		node.mu.Unlock()
 		if tpm != nil {
-			reply, _, err := ServeAttestation(tpm, method, payload)
+			reply, _, err := ServeAttestation(tpm, node.cfg.Record, isMember, method, payload)
 			return reply, err
 		}
 	}
@@ -237,13 +238,14 @@ func (node *Node) Handle(method string, payload Obj) (Obj, error) {
 		if err := node.Accept(entry); err != nil {
 			return nil, refuse("%s", err.Error())
 		}
-		return Obj{"length": node.Log.Len()}, nil
+		_, _, length, _ := node.Snapshot()
+		return Obj{"length": length}, nil
 	case "propose":
 		return node.onPropose(payload)
 	case "join":
 		return node.onJoin(payload)
 	case "token_challenge":
-		return node.onTokenChallenge(), nil
+		return node.onTokenChallenge()
 	case "token":
 		return node.onToken(payload)
 	}
@@ -267,7 +269,7 @@ func TokenRequest(kind, nonce string, slot int) []byte {
 	return []byte(fmt.Sprintf("fistpumpd token %s %s %d", kind, nonce, slot))
 }
 
-func (node *Node) onTokenChallenge() Obj {
+func (node *Node) onTokenChallenge() (Obj, error) {
 	node.mu.Lock()
 	defer node.mu.Unlock()
 	now := node.cfg.clock()
@@ -276,9 +278,12 @@ func (node *Node) onTokenChallenge() Obj {
 			delete(node.challenges, nonce)
 		}
 	}
+	if len(node.challenges) >= maxChallenges {
+		return nil, refuse("too many token challenges are open")
+	}
 	nonce := NewNonce()
 	node.challenges[nonce] = now
-	return Obj{"nonce": nonce}
+	return Obj{"nonce": nonce}, nil
 }
 
 func (node *Node) onToken(payload Obj) (Obj, error) {
@@ -347,18 +352,27 @@ func (node *Node) Accept(entry Obj) error {
 	if index > length {
 		node.CatchUp()
 	}
+	callback, err := node.appendNext(entry, index)
+	if err != nil {
+		return err
+	}
+	if callback != nil {
+		callback(node)
+	}
+	return nil
+}
+
+func (node *Node) appendNext(entry Obj, index int) (func(*Node), error) {
 	node.mu.Lock()
+	defer node.mu.Unlock()
 	if index != node.Log.Len() {
-		node.mu.Unlock()
-		return nil
+		return nil, nil
 	}
 	if err := node.Log.Append(entry); err != nil {
-		node.mu.Unlock()
-		return err
+		return nil, err
 	}
 	if err := node.cfg.Store.Append(string(Marshal(entry))); err != nil {
-		node.mu.Unlock()
-		return err
+		return nil, err
 	}
 	for key := range node.votes {
 		if number, _ := strconv.Atoi(key); number <= index {
@@ -366,12 +380,7 @@ func (node *Node) Accept(entry Obj) error {
 		}
 	}
 	_ = node.cfg.Store.SaveVotes(node.votes)
-	callback := node.onChange
-	node.mu.Unlock()
-	if callback != nil {
-		callback(node)
-	}
-	return nil
+	return node.onChange, nil
 }
 
 func (node *Node) CatchUp() {
@@ -426,6 +435,12 @@ func (node *Node) shape(entry Obj) error {
 		defer node.mu.Unlock()
 		index, _ := asInt(entry["index"])
 		return index == node.Log.Len(), str(entry, "prev") == node.Log.Head()
+	}
+	if _, isObject := entry["body"].(Obj); !isObject {
+		return refuse("body is an object")
+	}
+	if _, err := Canonical(entry); err != nil {
+		return refuse("%s", err.Error())
 	}
 	if indexOK, prevOK := check(); !indexOK || !prevOK {
 		node.CatchUp()

@@ -114,7 +114,7 @@ func runDaemon(arguments []string) error {
 	}
 	certificate, _ := os.ReadFile(buildCertificate)
 	keyring := firstExisting(keyrings)
-	cache := filepath.Join(*state, "policy.json")
+	cache := filepath.Join(*state, "policy")
 	daemon, err := cluster.NewDaemon(cluster.DaemonConfig{
 		Paths:   cluster.Paths{State: *state, Run: runDirectory, Topology: *topology, Topologies: candidates, Credstore: cluster.DefaultCredstore},
 		Genesis: genesis, TPM: &cluster.TPMProver{}, Verifier: cluster.TPMVerifier{}, Address: fmt.Sprintf("%s:%d", source, genesis.Port),

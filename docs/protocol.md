@@ -19,7 +19,7 @@ There is no leader election or gossip layer. The member that receives a join req
 | Build certificate (`/usr/lib/verity.d/mkosi.crt`) | the public key of the build key | it is part of the signed OS image |
 | Policy | the PCR values that are accepted | gpg signature over `SHA256SUMS`, checked against `/usr/lib/systemd/import-pubring.pgp` |
 
-The policy is a JSON document that each node fetches from the configured URLs, checks (signature of `SHA256SUMS`, then the checksum of `versions.json`), merges across URLs, and caches. It lists accepted values per PCR:
+The policy is a JSON document that each node fetches from the configured URLs, checks (signature of `SHA256SUMS`, then the checksum of `versions.json`) and merges across URLs. A signature by a revoked key is refused. The node caches the three signed files per URL and checks them again whenever it reads the cache, so a cache that was changed on disk is not used. It lists accepted values per PCR:
 
 | PCR | Source in the document |
 |---|---|
@@ -39,7 +39,7 @@ Canonical JSON: keys sorted by code point, no whitespace, strings in UTF-8 with 
 
 Entry types:
 
-- `admit`: the node record (`sign_pub`, `tls_fp`, `ek_hash`, `addr`), its roles, the facts it reported, the topology version and digest, the image it runs, and its PCR 1. Index 0 is the founder and signs itself. Every other admission needs a quorum.
+- `admit`: the node record (`sign_pub`, `tls_fp` and `ek_hash`, each 64 lower-case hex digits, and `addr`, a `host:port`), its roles (lower-case words), the facts it reported, the topology version and digest, the image it runs, and its PCR 1. Index 0 is the founder and signs itself. Every other admission needs a quorum.
 - `evict`: a slot and a reason. The target's own signature does not count.
 - `topology`: a new topology version and digest. Versions only go up.
 - `reset`: the slots that survive, signed by the build key instead of members (recovery, below).
@@ -51,7 +51,7 @@ The index of an `admit` entry is the node's **slot**. Slots are never reused. A 
 1. A new node (the candidate) asks a member to sponsor it, sending its node record and its facts.
 2. The sponsor attests the candidate, runs the role selection, and proposes an `admit` entry for the next index.
 3. Each voter validates the proposal itself: the index and `prev` fit, the node is new, the voter's topology is the one in the proposal, the voter's own role selection gives the same roles, and a fresh attestation of the candidate passes the policy. Then it records a vote lock and signs.
-4. With a quorum of signatures the sponsor appends the entry and pushes it to the members and to the candidate. The candidate fetches the whole log, verifies it, finds itself in it, and becomes a member.
+4. With a quorum of signatures the sponsor appends the entry and pushes it to the members and to the candidate. The candidate fetches the whole log, verifies it and finds itself in it. Then it attests the members of that log itself, against its own policy, and becomes a member only if a quorum of them passes. A log that anyone on the network made up is therefore not enough to capture a booting node.
 
 Vote locks expire after five minutes. That trades strict safety for liveness in one case: a sponsor and a candidate vanish after some members have voted.
 
@@ -59,11 +59,11 @@ Vote locks expire after five minutes. That trades strict safety for liveness in 
 
 The verifier does not trust the candidate's claims:
 
-1. **Key binding.** The verifier makes a credential for the candidate's endorsement key and attestation key name (`tpm2_makecredential`). The candidate proves that both keys sit in one TPM by activating it (`tpm2_activatecredential`).
-2. **Quote.** The candidate signs a quote over PCRs 0, 1, 2, 3, 7 and 11. Its qualifying data is the hash of a fresh nonce, the candidate's log signing key and its TLS certificate fingerprint. That ties the keys to the measured boot state.
+1. **Key binding.** The verifier reads the attestation key's public area, requires a restricted ECDSA P-256 signing key that the TPM made (`fixedTPM`, `fixedParent`, `sensitiveDataOrigin`, `restricted`, `sign`, not `decrypt`), and computes its name itself. It makes a credential for the candidate's endorsement key and that name (`tpm2_makecredential`). The candidate proves that both keys sit in one TPM by activating it (`tpm2_activatecredential`).
+2. **Quote.** The verifier sends a fresh nonce of 20 bytes (`attest_quote`, `{"nonce": hex}`). The prover signs a quote over PCRs 0, 1, 2, 3, 7 and 11 whose qualifying data is the hash of that nonce, its own log signing key and its own TLS certificate fingerprint. A node never quotes over qualifying data that a caller chose, so its quote cannot vouch for another node's keys. The verifier checks the quote itself: the signature by the attestation key from step 1, the `TPM_GENERATED` magic, the quote type, the qualifying data, the PCR selection and the PCR digest.
 3. **Policy.** The PCR values are checked against the policy.
 
-Endorsement key certificates are not checked: the trust is in the measured software and in the first sight of the key.
+Endorsement key certificates are not checked: the trust is in the measured software and in the first sight of the key. This is the main limit of the scheme on boards whose firmware TPM has no such certificate: a party on the network that emulates a whole TPM in software can report any PCR values and pass. Attestation stops a real board that runs other software, and a party that relays to a real board, not a software TPM.
 
 ## Role selection
 
@@ -123,9 +123,9 @@ kubectl --server=https://<member>:17948 --insecure-skip-tls-verify \
 
 ## Network
 
-Members speak JSON RPC over TLS 1.3 on port 17947 (`POST /rpc/<method>`). Each member has a self-signed certificate whose fingerprint is in its `admit` entry, and clients pin it. A candidate's first contact with a seed is unpinned. That is acceptable because the log is self-verifying and no secret crosses that connection. The log is public by design.
+Members speak JSON RPC over TLS 1.3 on port 17947 (`POST /rpc/<method>`). Each member has a self-signed certificate whose fingerprint is in its `admit` entry, and clients pin it. A candidate's first contact with a seed is unpinned. No secret crosses that connection, and the candidate attests the members of the log it is given over pinned connections before it trusts the log. The log is public by design.
 
-Discovery is a UDP broadcast on port 17946 that members and candidates answer with their address. A candidate that finds a member joins. If it finds none, it waits `founder_wait` seconds and, if its endorsement key hash is the lowest among the candidates it heard, it founds the log. Two nodes booting together elect one founder, and a node that boots later finds that member and joins. Two logs with different first entries cannot be merged. This is visible, and a lone founder never starts k3s.
+Discovery is a UDP broadcast on port 17946 that members and candidates answer with their address, to the address and port the question came from. A candidate that finds a member joins. If it finds none, it waits `founder_wait` seconds and, if its endorsement key hash is the lowest among the candidates it heard, it founds the log. Two nodes booting together elect one founder, and a node that boots later finds that member and joins. Two logs with different first entries cannot be merged. This is visible, and a lone founder never starts k3s.
 
 A local control socket at `/run/fistpumpd/control.sock` serves the CLI.
 
@@ -159,5 +159,8 @@ fistpumpd submit FILE
 - Member addresses are fixed at admission. A node whose address changes must be evicted and admitted again.
 - Below four members the cluster tolerates crashes, not a malicious member. A two-member cluster stops when either member does.
 - Vote lock expiry (five minutes) can in theory let two entries reach quorum when a partition and a vanished candidate coincide.
+- Without endorsement key certificates a software TPM passes attestation (see Attestation).
+- Discovery is not authenticated: a party on the network can keep candidates from founding a log, or make an attested member lose its peers' attestation by blocking its traffic.
+- Transition from releases before 0.5.0, which send the qualifying data instead of a nonce: an active member still quotes over such data, so members of both releases keep attesting each other during a rolling update. A candidate never does, so a node of this release joins only once the members it meets run this release. The exception goes away in a later release. Until then a member's quote can be relayed into another cluster that the member is not part of.
 - The TPM code is tested against `swtpm`, not against physical TPMs. Discovery and keepalived behavior are untested on a real network.
 - The build key signs the genesis, the topology and the reset entries. Its compromise is out of scope.

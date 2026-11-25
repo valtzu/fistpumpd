@@ -12,8 +12,15 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"net"
+	"regexp"
 	"sort"
 	"strconv"
+)
+
+var (
+	hexDigest   = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	addressHost = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9.:-]{0,251}[A-Za-z0-9])?$`)
 )
 
 const Zero = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -217,6 +224,9 @@ func (chain *Chain) Check(entry Obj) error {
 	if _, ok := entry["body"].(Obj); !ok {
 		return chainError("body is an object")
 	}
+	if _, err := Canonical(core(entry)); err != nil {
+		return chainError("%s", err.Error())
+	}
 	switch kind {
 	case "admit":
 		return chain.checkAdmit(entry)
@@ -294,15 +304,27 @@ func (chain *Chain) requireQuorum(entry Obj, excluded ...int) error {
 	return nil
 }
 
+func validAddress(address string) bool {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || !addressHost.MatchString(host) {
+		return false
+	}
+	number, err := strconv.Atoi(port)
+	return err == nil && number > 0 && number < 65536
+}
+
 func NodeRecord(value any) (Obj, error) {
 	node, ok := value.(Obj)
 	if !ok {
 		return nil, chainError("a node record has sign_pub, tls_fp and ek_hash")
 	}
 	for _, key := range []string{"sign_pub", "tls_fp", "ek_hash"} {
-		if text, ok := node[key].(string); !ok || text == "" {
-			return nil, chainError("a node record has sign_pub, tls_fp and ek_hash")
+		if text, ok := node[key].(string); !ok || !hexDigest.MatchString(text) {
+			return nil, chainError("a node record has sign_pub, tls_fp and ek_hash, each 64 lower-case hex digits")
 		}
+	}
+	if address, ok := node["addr"].(string); !ok || !validAddress(address) {
+		return nil, chainError("a node record has an address, host:port")
 	}
 	return node, nil
 }
@@ -313,8 +335,19 @@ func (chain *Chain) checkAdmit(entry Obj) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := body["roles"].([]any); !ok {
+	roles, ok := body["roles"].([]any)
+	if !ok {
 		return chainError("roles is a list")
+	}
+	for _, role := range roles {
+		if name, isString := role.(string); !isString || !roleName.MatchString(name) {
+			return chainError("roles are lower-case words")
+		}
+	}
+	if facts, present := body["facts"]; present {
+		if _, isObject := facts.(Obj); !isObject {
+			return chainError("facts is an object")
+		}
 	}
 	for _, member := range chain.Active() {
 		if member.SignPub() == str(node, "sign_pub") || str(member.Node, "ek_hash") == str(node, "ek_hash") {

@@ -4,6 +4,10 @@ package cluster
 
 import (
 	"bufio"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -62,20 +66,41 @@ func TestSwtpmAttestationRoundTrip(t *testing.T) {
 		t.Fatalf("%v %v", pcrs, err)
 	}
 	qualifying, _ := Binding(nonce, repeat("ab"), repeat("cd"))
-	quote, err := prover.Quote(qualifying)
+	quote, err := prover.Quote(nonce, repeat("ab"), repeat("cd"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	forged := quote["pcrs"].(Obj)
-	forged["7"] = repeat("11")
-	if _, err := (TPMVerifier{}).CheckQuote(hello, quote, qualifying); err == nil {
+	if _, err := (TPMVerifier{}).CheckQuote(hello, quote, qualifying); err != nil {
+		t.Fatalf("a genuine quote must pass: %v", err)
+	}
+	forged := roundTrip(quote)
+	forged["pcrs"].(Obj)["7"] = repeat("11")
+	if _, err := (TPMVerifier{}).CheckQuote(hello, forged, qualifying); err == nil {
 		t.Fatal("a forged PCR must be detected")
 	}
-	quote, _ = prover.Quote("00" + qualifying[2:])
-	if _, err := (TPMVerifier{}).CheckQuote(hello, quote, qualifying); err == nil {
+	if _, err := (TPMVerifier{}).CheckQuote(hello, quote, "00"+qualifying[2:]); err == nil {
 		t.Fatal("a wrong nonce must be detected")
 	}
+	other, _ := prover.Quote(nonce, repeat("ab"), repeat("ce"))
+	if _, err := (TPMVerifier{}).CheckQuote(hello, other, qualifying); err == nil {
+		t.Fatal("a quote for other keys must be detected")
+	}
+	stranger, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	swapped := Obj{"ek_pub": hello["ek_pub"], "ak_name": hello["ak_name"], "ak_pub": base64.StdEncoding.EncodeToString(softwareKey(stranger, attestationKeyRequired))}
+	if _, err := Attest(swappingProver{prover, swapped}, TPMVerifier{}, ek, NewNonce(), repeat("ab"), repeat("cd")); err == nil {
+		t.Fatal("an attestation key outside the TPM must be detected")
+	}
 }
+
+type swappingProver struct {
+	Prover
+	hello Obj
+}
+
+func (swapping swappingProver) Hello() (Obj, error) { return swapping.hello, nil }
 
 func TestClusterFormsWithRealAttestation(t *testing.T) {
 	var environments [][]string

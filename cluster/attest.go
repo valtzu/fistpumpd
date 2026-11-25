@@ -21,7 +21,7 @@ func attestationError(format string, args ...any) error {
 type Prover interface {
 	Hello() (Obj, error)
 	Answer(challenge string) (string, error)
-	Quote(qualifying string) (Obj, error)
+	Quote(nonce, signPub, tlsFP string) (Obj, error)
 }
 
 type Verifier interface {
@@ -42,8 +42,10 @@ func Binding(nonce, signPub, tlsFP string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+const nonceBytes = 20
+
 func NewNonce() string {
-	raw := make([]byte, 20)
+	raw := make([]byte, nonceBytes)
 	if _, err := rand.Read(raw); err != nil {
 		panic(err)
 	}
@@ -86,7 +88,7 @@ func Attest(prover Prover, verifier Verifier, expectedEK, nonce, signPub, tlsFP 
 	if err != nil {
 		return nil, err
 	}
-	quote, err := prover.Quote(qualifying)
+	quote, err := prover.Quote(nonce, signPub, tlsFP)
 	if err != nil {
 		return nil, err
 	}
@@ -107,11 +109,27 @@ func (remote RemoteProver) Answer(challenge string) (string, error) {
 	return str(reply, "secret"), nil
 }
 
-func (remote RemoteProver) Quote(qualifying string) (Obj, error) {
-	return remote.Call("attest_quote", Obj{"qualifying": qualifying})
+func (remote RemoteProver) Quote(nonce, signPub, tlsFP string) (Obj, error) {
+	payload := Obj{"nonce": nonce}
+	if legacy, err := Binding(nonce, signPub, tlsFP); err == nil {
+		payload["qualifying"] = legacy
+	}
+	return remote.Call("attest_quote", payload)
 }
 
-func ServeAttestation(prover Prover, method string, payload Obj) (Obj, bool, error) {
+type legacyProver interface {
+	QuoteQualifying(qualifying string) (Obj, error)
+}
+
+func legacyQuote(prover Prover, qualifying string) (Obj, error) {
+	legacy, supported := prover.(legacyProver)
+	if raw, err := hex.DecodeString(qualifying); !supported || err != nil || len(raw) != sha256.Size {
+		return nil, attestationError("a quote is asked for with a nonce of %d bytes", nonceBytes)
+	}
+	return legacy.QuoteQualifying(qualifying)
+}
+
+func ServeAttestation(prover Prover, record Obj, acceptLegacy bool, method string, payload Obj) (Obj, bool, error) {
 	switch method {
 	case "attest_hello":
 		reply, err := prover.Hello()
@@ -120,7 +138,15 @@ func ServeAttestation(prover Prover, method string, payload Obj) (Obj, bool, err
 		secret, err := prover.Answer(str(payload, "challenge"))
 		return Obj{"secret": secret}, true, err
 	case "attest_quote":
-		reply, err := prover.Quote(str(payload, "qualifying"))
+		nonce, hasNonce := payload["nonce"].(string)
+		if !hasNonce && acceptLegacy {
+			reply, err := legacyQuote(prover, str(payload, "qualifying"))
+			return reply, true, err
+		}
+		if raw, err := hex.DecodeString(nonce); err != nil || len(raw) != nonceBytes {
+			return nil, true, attestationError("a quote is asked for with a nonce of %d bytes", nonceBytes)
+		}
+		reply, err := prover.Quote(nonce, str(record, "sign_pub"), str(record, "tls_fp"))
 		return reply, true, err
 	}
 	return nil, false, nil

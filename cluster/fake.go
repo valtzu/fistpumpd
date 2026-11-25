@@ -61,7 +61,15 @@ func fakeMessage(pcrs map[string]string, qualifying string) string {
 	return message + qualifying
 }
 
-func (fake *FakeTPM) Quote(qualifying string) (Obj, error) {
+func (fake *FakeTPM) Quote(nonce, signPub, tlsFP string) (Obj, error) {
+	qualifying, err := Binding(nonce, signPub, tlsFP)
+	if err != nil {
+		return nil, err
+	}
+	return fake.QuoteQualifying(qualifying)
+}
+
+func (fake *FakeTPM) QuoteQualifying(qualifying string) (Obj, error) {
 	pcrs := Obj{}
 	selected := map[string]string{}
 	for _, number := range []string{"0", "1", "2", "3", "7", "11"} {

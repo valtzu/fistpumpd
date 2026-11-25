@@ -137,7 +137,15 @@ func (prover *TPMProver) Answer(challenge string) (string, error) {
 	return hex.EncodeToString(secret), err
 }
 
-func (prover *TPMProver) Quote(qualifying string) (Obj, error) {
+func (prover *TPMProver) Quote(nonce, signPub, tlsFP string) (Obj, error) {
+	qualifying, err := Binding(nonce, signPub, tlsFP)
+	if err != nil {
+		return nil, err
+	}
+	return prover.QuoteQualifying(qualifying)
+}
+
+func (prover *TPMProver) QuoteQualifying(qualifying string) (Obj, error) {
 	tpmSequence.Lock()
 	defer tpmSequence.Unlock()
 	work, cleanup := workDir()
@@ -189,49 +197,65 @@ func (TPMVerifier) Challenge(hello Obj) (string, string, error) {
 	if _, err := rand.Read(secret); err != nil {
 		return "", "", err
 	}
-	work, cleanup := workDir()
-	defer cleanup()
 	ek, err := base64.StdEncoding.DecodeString(str(hello, "ek_pub"))
 	if err != nil {
 		return "", "", attestationError("bad endorsement key")
 	}
+	key, err := helloKey(hello)
+	if err != nil {
+		return "", "", err
+	}
+	work, cleanup := workDir()
+	defer cleanup()
 	_ = os.WriteFile(filepath.Join(work, "ek.pub"), ek, 0o600)
 	_ = os.WriteFile(filepath.Join(work, "secret"), secret, 0o600)
 	if _, err := runTool(nil, "tpm2_makecredential", "-T", "none", "-e", filepath.Join(work, "ek.pub"), "-s", filepath.Join(work, "secret"),
-		"-n", str(hello, "ak_name"), "-o", filepath.Join(work, "cred.blob")); err != nil {
+		"-n", hex.EncodeToString(key.name), "-o", filepath.Join(work, "cred.blob")); err != nil {
 		return "", "", err
 	}
-	blob, _ := os.ReadFile(filepath.Join(work, "cred.blob"))
+	blob, err := os.ReadFile(filepath.Join(work, "cred.blob"))
+	if err != nil {
+		return "", "", attestationError("no credential was made")
+	}
 	return base64.StdEncoding.EncodeToString(blob), hex.EncodeToString(secret), nil
 }
 
+func helloKey(hello Obj) (*attestationKey, error) {
+	raw, err := base64.StdEncoding.DecodeString(str(hello, "ak_pub"))
+	if err != nil {
+		return nil, attestationError("bad attestation key")
+	}
+	return parseAttestationKey(raw)
+}
+
 func (TPMVerifier) CheckQuote(hello, quote Obj, qualifying string) (map[string]string, error) {
+	key, err := helloKey(hello)
+	if err != nil {
+		return nil, err
+	}
 	given, _ := quote["pcrs"].(Obj)
 	var raw []byte
 	values := map[string]string{}
 	for _, number := range pcrSelection {
-		key := strconv.Itoa(number)
-		value, _ := given[key].(string)
+		name := strconv.Itoa(number)
+		value, _ := given[name].(string)
 		decoded, err := hex.DecodeString(value)
 		if err != nil || len(decoded) != digestBytes {
 			return nil, attestationError("the quote lacks some of the PCRs")
 		}
 		raw = append(raw, decoded...)
-		values[key] = strings.ToLower(value)
+		values[name] = strings.ToLower(value)
 	}
-	work, cleanup := workDir()
-	defer cleanup()
-	decode := func(key string) []byte {
-		data, _ := base64.StdEncoding.DecodeString(str(quote, key))
-		return data
+	message, messageErr := base64.StdEncoding.DecodeString(str(quote, "message"))
+	signature, signatureErr := base64.StdEncoding.DecodeString(str(quote, "signature"))
+	expected, expectedErr := hex.DecodeString(qualifying)
+	if messageErr != nil || signatureErr != nil || expectedErr != nil {
+		return nil, attestationError("the quote is not encoded as expected")
 	}
-	ak, _ := base64.StdEncoding.DecodeString(str(hello, "ak_pub"))
-	files := map[string][]byte{"ak.pub": ak, "quote.msg": decode("message"), "quote.sig": decode("signature"), "quote.pcrs": raw}
-	for name, data := range files {
-		_ = os.WriteFile(filepath.Join(work, name), data, 0o600)
+	if err := verifyQuoteSignature(key.public, message, signature); err != nil {
+		return nil, err
 	}
-	if _, err := runTool(nil, "tpm2_checkquote", "-u", filepath.Join(work, "ak.pub"), "-m", filepath.Join(work, "quote.msg"),
-		"-s", filepath.Join(work, "quote.sig"), "-f", filepath.Join(work, "quote.pcrs"), "-l", pcrList(), "-g", bank, "-q", qualifying); err != nil {
+	if err := verifyQuoteMessage(message, expected, raw); err != nil {
 		return nil, err
 	}
 	return values, nil
