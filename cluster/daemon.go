@@ -147,11 +147,7 @@ func (d *Daemon) topologyPath() string {
 }
 
 func (d *Daemon) loadTopology() error {
-	data, err := os.ReadFile(d.topologyPath())
-	if err != nil {
-		return err
-	}
-	document, err := DecodeObj(data)
+	document, err := ReadTopologyFile(d.topologyPath())
 	if err != nil {
 		return err
 	}
@@ -599,11 +595,7 @@ func (d *Daemon) housekeeping(ctx context.Context) {
 }
 
 func (d *Daemon) reloadTopology(node *Node) {
-	data, err := os.ReadFile(d.topologyPath())
-	if err != nil {
-		return
-	}
-	document, err := DecodeObj(data)
+	document, err := ReadTopologyFile(d.topologyPath())
 	if err != nil {
 		return
 	}

@@ -31,7 +31,10 @@ const (
 	buildCertificate = "/usr/lib/verity.d/mkosi.crt"
 )
 
-var topologyPaths = []string{"/etc/fistpumpd/topology.json", "/usr/lib/fistpumpd/topology.json"}
+var topologyPaths = []string{
+	"/etc/fistpumpd/topology.yaml", "/etc/fistpumpd/topology.yml", "/etc/fistpumpd/topology.json",
+	"/usr/lib/fistpumpd/topology.yaml", "/usr/lib/fistpumpd/topology.yml", "/usr/lib/fistpumpd/topology.json",
+}
 var keyrings = []string{"/usr/lib/systemd/import-pubring.pgp", "/usr/lib/systemd/import-pubring.gpg"}
 
 func main() {

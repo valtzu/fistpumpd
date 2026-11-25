@@ -15,7 +15,7 @@ There is no leader election or gossip layer. The member that receives a join req
 | Input | Content | Trusted because |
 |---|---|---|
 | Genesis (`/usr/lib/fistpumpd/genesis.json`) | minimum member count, ports, policy URLs, timings | it is part of the signed OS image |
-| Topology (`/etc/fistpumpd/topology.json`, else `/usr/lib/fistpumpd/topology.json`) | roles, selectors, floating addresses, a version | it ships in the signed image or in a signed confext |
+| Topology (`topology.yaml`, `topology.yml` or `topology.json` in `/etc/fistpumpd`, else the same names in `/usr/lib/fistpumpd`; YAML is read as the JSON it describes, so the digest does not depend on the format) | roles, selectors, floating addresses, a version | it ships in the signed image or in a signed confext |
 | Build certificate (`/usr/lib/verity.d/mkosi.crt`) | the public key of the build key | it is part of the signed OS image |
 | Policy | the PCR values that are accepted | gpg signature over `SHA256SUMS`, checked against `/usr/lib/systemd/import-pubring.pgp` |
 
