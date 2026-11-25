@@ -130,6 +130,7 @@ func SignBuild(key crypto.Signer, entry Obj) (string, error) {
 
 type Member struct {
 	Slot   int
+	Number int
 	Node   Obj
 	Roles  []string
 	Facts  Obj
@@ -387,7 +388,7 @@ func (chain *Chain) applyAdmit(entry Obj) {
 	}
 	slot := integer(entry, "index")
 	chain.Members[slot] = &Member{
-		Slot: slot, Node: body["node"].(Obj), Roles: stringList(body["roles"]), Facts: facts, Policy: policy,
+		Slot: slot, Number: len(chain.Members), Node: body["node"].(Obj), Roles: stringList(body["roles"]), Facts: facts, Policy: policy,
 		PCR1: str(body, "pcr1"), Status: "active",
 	}
 	if topology, ok := body["topology"].(Obj); ok && len(topology) > 0 {

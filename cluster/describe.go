@@ -39,7 +39,7 @@ func Summarize(chain *Chain) Obj {
 	for _, slot := range slots {
 		member := chain.Members[slot]
 		members = append(members, Obj{
-			"slot": slot, "addr": member.Addr(), "roles": toAny(member.Roles), "image": str(member.Policy, "image"), "status": member.Status,
+			"slot": slot, "number": member.Number, "addr": member.Addr(), "roles": toAny(member.Roles), "image": str(member.Policy, "image"), "status": member.Status,
 		})
 	}
 	entries := []any{}

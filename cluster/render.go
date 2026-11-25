@@ -107,6 +107,7 @@ func templateText(given any) (string, error) {
 
 type View struct {
 	Slot          int
+	Number        int
 	Rank          int
 	Members       int
 	MinMembers    int
@@ -213,7 +214,7 @@ func BuildView(chain *Chain, slot int, topology *Topology, minMembers int, iface
 	me := chain.Member(slot)
 	active := chain.Active()
 	view := &View{
-		Slot: slot, Rank: chain.RankOf(slot), Members: len(active), MinMembers: minMembers, Roles: me.Roles,
+		Slot: slot, Number: me.Number, Rank: chain.RankOf(slot), Members: len(active), MinMembers: minMembers, Roles: me.Roles,
 		Topology: chain.TopologyVersion(), Interface: iface, topology: topology,
 		holders: map[string][]int{}, first: firstSlots(chain), addresses: map[int]string{},
 	}

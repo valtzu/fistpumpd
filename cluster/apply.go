@@ -38,7 +38,7 @@ func hostPath(root, run, path string) string {
 
 func Apply(view *View, files []FileSpec, root, runDirectory string, host Host) ([]string, error) {
 	var changed []string
-	state := Marshal(Obj{"slot": view.Slot, "rank": view.Rank, "members": view.Members, "roles": view.Roles, "topology": view.Topology})
+	state := Marshal(Obj{"slot": view.Slot, "number": view.Number, "rank": view.Rank, "members": view.Members, "roles": view.Roles, "topology": view.Topology})
 	if _, err := writeIfChanged(filepath.Join(runDirectory, "state.json"), string(state)+"\n", 0o644); err != nil {
 		return changed, err
 	}

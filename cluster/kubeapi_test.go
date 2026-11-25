@@ -25,8 +25,8 @@ func sampleSnapshot() APISnapshot {
 	return APISnapshot{
 		Topology: 2,
 		Members: []APIMember{
-			{Slot: 1, Addr: "192.168.1.7:17947", Roles: []string{"server"}, Facts: Obj{"arch": "arm64", "memory-gib": 8}, Image: "33", Healthy: false},
-			{Slot: 0, Addr: "192.168.1.9:17947", Roles: []string{"server", "ingress"}, Facts: Obj{"arch": "arm64"}, Image: "33", Healthy: true},
+			{Slot: 1, Number: 1, Addr: "192.168.1.7:17947", Roles: []string{"server"}, Facts: Obj{"arch": "arm64", "memory-gib": 8}, Image: "33", Healthy: false},
+			{Slot: 0, Number: 0, Addr: "192.168.1.9:17947", Roles: []string{"server", "ingress"}, Facts: Obj{"arch": "arm64"}, Image: "33", Healthy: true},
 		},
 		Roles: []APIRole{{Name: "server", Min: 3, Max: &three, Held: 2, Ready: 1}, {Name: "ingress", Held: 1, Ready: 1}},
 	}
@@ -57,7 +57,7 @@ func TestTheAPIAnswersDiscovery(t *testing.T) {
 	}
 }
 
-func TestMachinesAreListedInSlotOrderWithLabels(t *testing.T) {
+func TestMachinesAreListedInNumberOrderWithLabels(t *testing.T) {
 	handler := NewKubeAPI(sampleSnapshot)
 	code, body := get(t, handler, apiGroupPath+"/machines", "")
 	items, _ := body["items"].([]any)
@@ -65,8 +65,8 @@ func TestMachinesAreListedInSlotOrderWithLabels(t *testing.T) {
 		t.Fatalf("%d %v", code, body)
 	}
 	first := items[0].(map[string]any)
-	if first["metadata"].(map[string]any)["name"] != "slot-0" {
-		t.Fatalf("not in slot order: %v", first)
+	if first["metadata"].(map[string]any)["name"] != "node-0" {
+		t.Fatalf("not in number order: %v", first)
 	}
 	second := items[1].(map[string]any)
 	labels := second["metadata"].(map[string]any)["labels"].(map[string]any)
@@ -83,10 +83,10 @@ func TestMachinesAreListedInSlotOrderWithLabels(t *testing.T) {
 
 func TestOneMachineAndOneMachineSet(t *testing.T) {
 	handler := NewKubeAPI(sampleSnapshot)
-	if code, body := get(t, handler, apiGroupPath+"/machines/slot-1", ""); code != 200 || body["kind"] != "Machine" {
+	if code, body := get(t, handler, apiGroupPath+"/machines/node-1", ""); code != 200 || body["kind"] != "Machine" {
 		t.Fatalf("%d %v", code, body)
 	}
-	if code, _ := get(t, handler, apiGroupPath+"/machines/slot-9", ""); code != 404 {
+	if code, _ := get(t, handler, apiGroupPath+"/machines/node-9", ""); code != 404 {
 		t.Fatalf("unknown machine: %d", code)
 	}
 	code, body := get(t, handler, apiGroupPath+"/machinesets/server", "")
@@ -104,14 +104,14 @@ func TestATableIsServedWhenKubectlAsksForOne(t *testing.T) {
 		t.Fatalf("%d %v", code, body)
 	}
 	cells := rows[0].(map[string]any)["cells"].([]any)
-	if cells[0] != "slot-0" || cells[1] != "192.168.1.9" || cells[2] != "server,ingress" || cells[3] != "Running" {
+	if cells[0] != "node-0" || cells[1] != "192.168.1.9" || cells[2] != "server,ingress" || cells[3] != "Running" {
 		t.Fatalf("cells %v", cells)
 	}
 }
 
 func TestTheAPIIsReadOnly(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	NewKubeAPI(sampleSnapshot).ServeHTTP(recorder, httptest.NewRequest("DELETE", apiGroupPath+"/machines/slot-0", nil))
+	NewKubeAPI(sampleSnapshot).ServeHTTP(recorder, httptest.NewRequest("DELETE", apiGroupPath+"/machines/node-0", nil))
 	if recorder.Code != 405 {
 		t.Fatalf("%d", recorder.Code)
 	}

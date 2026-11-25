@@ -158,7 +158,7 @@ func status() error {
 		if roles == "" {
 			roles = "-"
 		}
-		fmt.Printf("  slot %-3v %-22v roles %-24s %s\n", member["slot"], node["addr"], roles, health)
+		fmt.Printf("  node %-3v (slot %v) %-22v roles %-24s %s\n", member["number"], member["slot"], node["addr"], roles, health)
 	}
 	roleList, _ := reply["roles"].([]any)
 	for _, item := range roleList {

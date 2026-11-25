@@ -307,7 +307,7 @@ func (d *Daemon) apiSnapshot() APISnapshot {
 	for _, member := range active {
 		_, bad := failing[member.Slot]
 		snapshot.Members = append(snapshot.Members, APIMember{
-			Slot: member.Slot, Addr: member.Addr(), Roles: member.Roles, Facts: member.Facts,
+			Slot: member.Slot, Number: member.Number, Addr: member.Addr(), Roles: member.Roles, Facts: member.Facts,
 			Image: str(member.Policy, "image"), Healthy: !bad,
 		})
 	}
@@ -621,7 +621,7 @@ func (d *Daemon) Handle(method string, payload Obj) (Obj, error) {
 			active, head, length, _ := node.Snapshot()
 			members := []any{}
 			for _, member := range active {
-				members = append(members, Obj{"slot": member.Slot, "node": member.Node, "roles": toAny(member.Roles), "status": member.Status})
+				members = append(members, Obj{"slot": member.Slot, "number": member.Number, "node": member.Node, "roles": toAny(member.Roles), "status": member.Status})
 			}
 			reply["slot"], reply["members"], reply["head"], reply["length"] = node.Slot(), members, head, length
 			d.mutex.Lock()

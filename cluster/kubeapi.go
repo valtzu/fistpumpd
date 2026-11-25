@@ -22,6 +22,7 @@ const (
 
 type APIMember struct {
 	Slot    int
+	Number  int
 	Addr    string
 	Roles   []string
 	Facts   Obj
@@ -86,7 +87,7 @@ func (api *kubeAPI) resources(w http.ResponseWriter, r *http.Request) {
 	}})
 }
 
-func machineName(slot int) string { return fmt.Sprintf("slot-%d", slot) }
+func machineName(number int) string { return fmt.Sprintf("node-%d", number) }
 
 func machineObject(member APIMember) Obj {
 	labels := Obj{}
@@ -106,8 +107,8 @@ func machineObject(member APIMember) Obj {
 	}
 	return Obj{
 		"apiVersion": apiGroup + "/" + apiVersion, "kind": "Machine",
-		"metadata": Obj{"name": machineName(member.Slot), "labels": labels},
-		"spec":     Obj{"providerID": fmt.Sprintf("fistpumpd://slot/%d", member.Slot)},
+		"metadata": Obj{"name": machineName(member.Number), "labels": labels},
+		"spec":     Obj{"providerID": fmt.Sprintf("fistpumpd://node/%d", member.Number)},
 		"status": Obj{
 			"phase": phase, "addresses": []any{Obj{"type": "InternalIP", "address": host}},
 			"roles": toAny(member.Roles), "image": member.Image,
@@ -162,7 +163,7 @@ func (api *kubeAPI) serve(w http.ResponseWriter, r *http.Request) {
 	}
 	snapshot := api.snapshot()
 	members := append([]APIMember{}, snapshot.Members...)
-	sort.Slice(members, func(i, j int) bool { return members[i].Slot < members[j].Slot })
+	sort.Slice(members, func(i, j int) bool { return members[i].Number < members[j].Number })
 	switch parts[0] {
 	case "machines":
 		api.machines(w, r, parts[1:], members)
@@ -183,7 +184,7 @@ func status(member APIMember) string {
 func (api *kubeAPI) machines(w http.ResponseWriter, r *http.Request, rest []string, members []APIMember) {
 	if len(rest) == 1 {
 		for _, member := range members {
-			if machineName(member.Slot) != rest[0] {
+			if machineName(member.Number) != rest[0] {
 				continue
 			}
 			if wantsTable(r) {
@@ -218,8 +219,8 @@ func machineTable(members []APIMember) table {
 		if roles == "" {
 			roles = "<none>"
 		}
-		t.names = append(t.names, machineName(member.Slot))
-		t.rows = append(t.rows, []any{machineName(member.Slot), host, roles, status(member), member.Image})
+		t.names = append(t.names, machineName(member.Number))
+		t.rows = append(t.rows, []any{machineName(member.Number), host, roles, status(member), member.Image})
 	}
 	return t
 }

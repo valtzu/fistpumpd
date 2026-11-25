@@ -44,7 +44,7 @@ Entry types:
 - `topology`: a new topology version and digest. Versions only go up.
 - `reset`: the slots that survive, signed by the build key instead of members (recovery, below).
 
-The index of an `admit` entry is the node's **slot**. Slots are never reused. A node can replay the whole log and check every signature, so it needs to trust nothing but its genesis and the build certificate.
+The index of an `admit` entry is the node's **slot**. Slots are never reused. Each admitted node also has a **number**: the count of nodes admitted before it, so the first is 0 and the numbers have no gaps. It is derived on replay and not stored in the log. A node can replay the whole log and check every signature, so it needs to trust nothing but its genesis and the build certificate.
 
 ## Admission
 
@@ -93,7 +93,7 @@ Template values:
 
 | Value | Meaning |
 |---|---|
-| `.Slot`, `.Rank`, `.Members`, `.MinMembers`, `.Roles`, `.Topology`, `.Interface` | the node's slot and rank, the number of active members, the genesis minimum, the node's roles, the topology version and the network interface |
+| `.Slot`, `.Number`, `.Rank`, `.Members`, `.MinMembers`, `.Roles`, `.Topology`, `.Interface` | the node's slot and rank, the number of active members, the genesis minimum, the node's roles, the topology version and the network interface |
 | `.Holds "role"` | whether this node holds the role |
 | `.RankIn "role"`, `.Count "role"` | this node's position among the holders of the role, and how many hold it |
 | `.IsFirst "role"` | whether this node is the first member ever admitted to the role |
@@ -110,7 +110,7 @@ A member serves a read-only, Kubernetes-style HTTP API on `api_port` (genesis, d
 
 The group is `cluster.fistpumpd.example/v1alpha1`:
 
-- `machines`: one per active member, named `slot-N`. The facts and the roles (`role.fistpumpd.example/<role>`) are labels. `status` has the phase (`Running`, or `Failed` while attestation fails), the address, the roles and the image.
+- `machines`: one per active member, named `node-N`, where N is the node's number. The facts and the roles (`role.fistpumpd.example/<role>`) are labels. `status` has the phase (`Running`, or `Failed` while attestation fails), the address, the roles and the image.
 - `machinesets`: one per role of the topology, named after the role. `spec.replicas` is `min`, `spec.maxReplicas` is `max`, and `status` has the number of holders and the number of healthy holders.
 
 `get` and `list` work, and the Table format that `kubectl get` asks for is served. Any other verb is refused.
