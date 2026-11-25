@@ -142,7 +142,7 @@ A local control socket at `/run/fistpumpd/control.sock` serves the CLI.
 fistpumpd daemon                     # run the member
 fistpumpd status                     # members, roles, failing peers
 fistpumpd log                        # the log as JSON
-fistpumpd evict SLOT [--reason TEXT] # propose an eviction
+fistpumpd evict NODE [--reason TEXT] # propose an eviction
 fistpumpd verify [--certificate F] < log.json   # check a log from outside
 fistpumpd reset-sign --log F --key F --certificate F --keep SLOTS
 fistpumpd submit FILE

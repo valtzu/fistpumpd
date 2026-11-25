@@ -67,7 +67,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: fistpumpd daemon | status | log | evict SLOT [--reason TEXT] | reset-sign --log FILE --key FILE --certificate FILE --keep SLOTS | submit FILE | verify [--certificate FILE] < log.json | version")
+	fmt.Fprintln(os.Stderr, "usage: fistpumpd daemon | status | log | evict NODE [--reason TEXT] | reset-sign --log FILE --key FILE --certificate FILE --keep SLOTS | submit FILE | verify [--certificate FILE] < log.json | version")
 	os.Exit(2)
 }
 
@@ -199,11 +199,11 @@ func evict(arguments []string) error {
 	if len(positional) != 1 {
 		usage()
 	}
-	slot, err := strconv.Atoi(positional[0])
+	number, err := strconv.Atoi(positional[0])
 	if err != nil {
 		return err
 	}
-	reply, err := control("evict", cluster.Obj{"slot": slot, "reason": *reason})
+	reply, err := control("evict", cluster.Obj{"number": number, "reason": *reason})
 	if err != nil {
 		return err
 	}

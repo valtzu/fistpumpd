@@ -346,3 +346,26 @@ func TestAnOutsiderGetsNoToken(t *testing.T) {
 		t.Fatal("an outsider must get nothing")
 	}
 }
+
+func TestNumbersStayGaplessAndSurviveAnEviction(t *testing.T) {
+	nodes := makeCluster(t, NewNetwork(), 4)
+	numbers := func() []int {
+		var got []int
+		for _, member := range mustActive(nodes[0]) {
+			got = append(got, member.Number)
+		}
+		return got
+	}
+	if got := numbers(); !equalInts(got, []int{0, 1, 2, 3}) {
+		t.Fatalf("%v", got)
+	}
+	for _, node := range nodes {
+		node.SetObserver(watching{1: true})
+	}
+	if _, err := nodes[0].ProposeEvict(1, "attestation failed"); err != nil {
+		t.Fatal(err)
+	}
+	if got := numbers(); !equalInts(got, []int{0, 2, 3}) {
+		t.Fatalf("%v", got)
+	}
+}

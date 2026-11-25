@@ -646,7 +646,17 @@ func (d *Daemon) Handle(method string, payload Obj) (Obj, error) {
 		if node == nil {
 			return nil, refuse("this node is not a member")
 		}
-		slot, _ := asInt(payload["slot"])
+		number, ok := asInt(payload["number"])
+		slot := -1
+		active, _, _, _ := node.Snapshot()
+		for _, member := range active {
+			if ok && member.Number == number {
+				slot = member.Slot
+			}
+		}
+		if slot < 0 {
+			return nil, refuse("node %v is not an active member", payload["number"])
+		}
 		reason := str(payload, "reason")
 		if reason == "" {
 			reason = "operator request"
