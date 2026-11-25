@@ -33,3 +33,49 @@ func TestAYAMLTopologyIsParsedLikeJSON(t *testing.T) {
 		t.Fatalf("files not parsed: %+v", fromYAML.Files)
 	}
 }
+
+func TestATemplateFileIsReadIntoTheTopologyAndChangesItsDigest(t *testing.T) {
+	directory := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(directory, "templates"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, text string) {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	topology := func() *Topology {
+		document, err := ReadTopologyFile(filepath.Join(directory, "topology.yaml"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		parsed, err := ParseTopology(document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return parsed
+	}
+	write("topology.yaml", "version: 1\nroles:\n  - {name: server}\nfiles:\n  - path: /run/x\n    template_file: templates/x.tmpl\n")
+	write("templates/x.tmpl", "hello {{.Count \"server\"}}\n\n")
+	first := topology()
+	spec := first.Document["files"].([]any)[0].(Obj)
+	if spec["template"] != "hello {{.Count \"server\"}}" || spec["template_file"] != nil {
+		t.Fatalf("spec %v", spec)
+	}
+	write("templates/x.tmpl", "bye\n")
+	if topology().Digest == first.Digest {
+		t.Fatal("the digest must cover the template's content")
+	}
+}
+
+func TestATemplateFileCannotLeaveTheTopologyDirectory(t *testing.T) {
+	directory := t.TempDir()
+	path := filepath.Join(directory, "topology.yaml")
+	text := "version: 1\nfiles:\n  - path: /run/x\n    template_file: ../secret\n"
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadTopologyFile(path); err == nil {
+		t.Fatal("expected a refusal")
+	}
+}
