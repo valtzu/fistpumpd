@@ -37,6 +37,10 @@ rect,path{fill:none;stroke-width:1.5}
 .a2{opacity:0;animation:a2 27s linear infinite}
 @keyframes a3{0%,69.63%{opacity:0}71.48%,79.63%{opacity:1}81.48%,100%{opacity:0}}
 .a3{opacity:0;animation:a3 27s linear infinite}
+@keyframes r1{0%,53.70%{opacity:0}55.56%,61.11%{opacity:1}62.96%,100%{opacity:0}}
+.r1{opacity:0;animation:r1 27s linear infinite}
+@keyframes r2{0%,74.07%{opacity:0}75.93%,79.63%{opacity:1}81.48%,100%{opacity:0}}
+.r2{opacity:0;animation:r2 27s linear infinite}
 @keyframes c0{0%{opacity:0}1.85%,11.11%{opacity:1}12.96%,100%{opacity:0}}
 .c0{opacity:0;animation:c0 27s linear infinite}
 @keyframes c1{0%,12.96%{opacity:0}14.81%,24.07%{opacity:1}25.93%,100%{opacity:0}}
@@ -68,11 +72,13 @@ rect,path{fill:none;stroke-width:1.5}
 <g class="j2"><path class="ar" marker-end="url(#h)" d="M564 82H498"/><text class="s ac" x="531.0" y="75">join</text></g>
 <g class="a2"><path class="ar" marker-end="url(#h)" d="M496 118H562"/><text class="s ac" x="529.0" y="111">attest</text></g>
 <g class="a3"><path class="ar" marker-end="url(#h)" d="M140 50C240 6 560 6 656 48"/><text class="s ac" x="400" y="14">attest</text></g>
+<g class="r1"><path class="ar" marker-end="url(#h)" d="M302 132H236"/><text class="s ac" x="269.0" y="147">attest</text></g>
+<g class="r2"><path class="ar" marker-end="url(#h)" d="M562 132H498"/><text class="s ac" x="529.0" y="147">attest</text><path class="ar" marker-end="url(#h)" d="M644 48C556 22 244 22 148 50"/><text class="s ac" x="400" y="45">attest</text></g>
 <text class="cap c0" x="400" y="318">Node A boots and broadcasts. No member answers.</text>
 <text class="cap c1" x="400" y="318">A waits, then founds the log. It starts no services alone.</text>
 <text class="cap c2" x="400" y="318">Node B boots, finds A and asks to join.</text>
 <text class="cap c3" x="400" y="318">A checks B's TPM quote against the signed policy and signs the admission.</text>
 <text class="cap c4" x="400" y="318">B verifies the log, attests A in turn and becomes a member.</text>
-<text class="cap c5" x="400" y="318">Node C joins the same way. Now A and B both attest it and sign.</text>
+<text class="cap c5" x="400" y="318">Node C joins the same way. A and B attest it and sign, then C attests them.</text>
 <text class="cap c6" x="400" y="318">Each member writes its configuration from the same log.</text>
 </svg>
